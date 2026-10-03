@@ -1,36 +1,26 @@
-# Paper to Playground — Step 2 scaffold
+# Paper to Playground — paper preparation stage
 
-This is **not yet a hackathon submission**. It adds a source-grounded planning
-call to the Step 1 CLI and trace. The page is explicitly marked as a planning
-preview. Later steps replace `scaffold_page()` with generated calculations,
-controls, visuals, and real checks.
+The current CLI prepares the paper representation that a later model stage will receive. It makes **zero model calls** and does not select a relevant idea, create a plan, or generate an HTML playground.
 
 ## Run
 
-Requires Python 3.11 and an **OpenRouter-issued** API key. Set it in your shell;
-never put it in `case.json`, the source code, or a commit.
+Python 3.11 and the pinned packages in `requirements.txt` are required. The `--model` argument is retained for the final hackathon CLI interface but is not used at this stage. No OpenRouter key is needed.
 
 ```bash
 python -m pip install -r requirements.txt
-export OPENROUTER_API_KEY='your-key-here'
 python agent.py --input case.example.json --output out --model deepseek/deepseek-v4.1-flash
 ```
 
-Inspect `out/plan.json`, `out/index.html`, and `out/trace.jsonl`. The supplied
-case is an explicitly **synthetic integration fixture**, not a paper excerpt or
-the example input/output pair required for final submission. The program uses
-the exact `--model` value; the shown DeepSeek slug is only a development example.
+The example case has the three available inputs: `source_url`, `focus`, and `audience`. The preparation process never uses `focus` or `audience` to filter the paper.
 
-## Input contract pending clarification
+## What the CLI prepares
 
-The brief calls for five required string fields but names only `source_url`,
-`focus`, and `audience`. It also refers to excerpts, while assessment network
-access is limited to OpenRouter. This step provisionally reads an `excerpt`
-field and preserves other JSON fields. Confirm the actual field name and source
-delivery method with the instructor before final submission.
+For arXiv URLs, it tries the full-text HTML first. It preserves the extracted text, headings, captions, tables, and every figure image. If HTML is unavailable or cannot be prepared, it falls back to the PDF. The PDF path extracts text and detected table rows from every page and renders every page so diagrams and other visual material are included.
 
-## Next steps
+`out/model_input.json` contains the unchanged three inputs, the full extracted paper text, and every figure or page image as a base64 JPEG data URL. Images are combined into numbered sheets only to bound the number of image parts in a future model request. `out/paper.txt` is a readable copy of the extracted text. `out/manifest.json` gives counts and indicates whether the images fit in one request. `out/trace.jsonl` records preparation events. No planning result or `index.html` is generated yet.
 
-1. Generate calculations and generic visual components from the validated plan.
-2. Add numerical and interaction checks with targeted repair.
-3. Add total time/request/token guards and account for failed calls.
+The case can be prepared only when the paper is retrievable from the execution environment. This remains an assessment integration constraint to verify.
+
+## Reuse credits
+
+PDF rendering, text, image, and table extraction use PyMuPDF. Image composition uses Pillow. HTTPS certificate roots use certifi.

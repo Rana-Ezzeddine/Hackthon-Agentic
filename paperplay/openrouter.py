@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+import certifi
 
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -26,14 +29,20 @@ class ModelCallError(RuntimeError):
     pass
 
 
-def complete(model_id: str, messages: list[dict[str, str]], *, timeout: float = 90.0) -> Completion:
+def complete(
+    model_id: str,
+    messages: list[dict[str, object]],
+    *,
+    timeout: float = 90.0,
+    max_completion_tokens: int = 2500,
+) -> Completion:
     key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not key:
         raise ModelCallError("OPENROUTER_API_KEY is not set.")
     payload = {
         "model": model_id,
         "messages": messages,
-        "max_completion_tokens": 2500,
+        "max_completion_tokens": max_completion_tokens,
         "temperature": 0.2,
         "stream": False,
     }
@@ -45,7 +54,10 @@ def complete(model_id: str, messages: list[dict[str, str]], *, timeout: float = 
     )
     started = time.monotonic()
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with urlopen(
+            request, timeout=timeout,
+            context=ssl.create_default_context(cafile=certifi.where()),
+        ) as response:
             data = json.load(response)
     except HTTPError as exc:
         # Do not log raw response bodies: they can contain sensitive request data.

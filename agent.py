@@ -1,22 +1,22 @@
-"""Step 2 scaffold for the Paper to Playground generator.
+"""Prepare the complete paper representation for a future model request.
 
-This file runs source-grounded planning but does not yet create an interactive
-scientific explanation. Calculation, visuals, and checks follow in Step 3.
+This stage makes no model calls and makes no decisions about which paper
+material is relevant to the focus or audience.
 """
 
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urlparse
 
-from paperplay.openrouter import ModelCallError, complete
-from paperplay.prompts import planning_messages
-from paperplay.schema import parse_plan, validate_plan
+from paperplay.budget import Budget
+from paperplay.source import load_case, prepare_paper
+from paperplay.visuals import (
+    MAX_IMAGES_PER_CALL, make_page_sheets, sheet_data_url, visual_batches,
+)
 
 
 def log_event(trace_path: Path, started: float, stage: str, action: str, result: object) -> None:
@@ -30,104 +30,68 @@ def log_event(trace_path: Path, started: float, stage: str, action: str, result:
         handle.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
-def load_case(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as handle:
-        case = json.load(handle)
-    if not isinstance(case, dict):
-        raise ValueError("The input must be a JSON object.")
-    for field in ("source_url", "focus", "audience"):
-        if not isinstance(case.get(field), str) or not case[field].strip():
-            raise ValueError(f"'{field}' must be a nonempty string.")
-    parsed = urlparse(case["source_url"])
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        raise ValueError("'source_url' must be an HTTP(S) URL.")
-    # Keep additional fields intact until the instructor confirms the schema.
-    return case
-
-
-def get_excerpt(case: dict) -> str:
-    # Provisional name until the instructor supplies the complete input schema.
-    excerpt = case.get("excerpt")
-    if not isinstance(excerpt, str) or not excerpt.strip():
-        raise ValueError("Step 2 needs a nonempty 'excerpt' field in the input JSON.")
-    return excerpt.strip()
-
-
-def scaffold_page(case: dict, plan: dict) -> str:
-    """Temporary page proving the output interface; replaced in Step 3."""
-    title = html.escape(case["focus"])
-    audience = html.escape(case["audience"])
-    source = html.escape(case["source_url"], quote=True)
-    plan_title = html.escape(plan["concept"]["title"])
-    controls = "".join(f"<li>{html.escape(item['label'])}</li>" for item in plan["controls"])
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Paper to Playground — scaffold</title>
-  <style>
-    body {{ font: 18px/1.55 system-ui, sans-serif; max-width: 48rem;
-           padding: 2rem; margin: auto; color: #172339; background: #f7f9fc; }}
-    main {{ padding: 2rem; background: white; border-radius: 1rem; }}
-    .notice {{ padding: 1rem; background: #fff4d8; border-radius: .5rem; }}
-  </style>
-</head>
-<body><main>
-  <h1>{title}</h1>
-  <p>Intended audience: {audience}</p>
-  <p>Source: <a href="{source}">{source}</a></p>
-  <p class="notice">Step 2 planning preview only. This is not an interactive
-  explanation; calculations, visuals, and checks still need implementation.</p>
-  <h2>Planned concept: {plan_title}</h2>
-  <p>Planned controls:</p><ul>{controls}</ul>
-</main></body>
-</html>
-"""
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate a paper explanation")
+    parser = argparse.ArgumentParser(description="Prepare an arXiv paper for a model")
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--model", required=True, help="Reserved for the later model stage")
     args = parser.parse_args()
 
     started = time.monotonic()
+    budget = Budget(started)
     args.output.mkdir(parents=True, exist_ok=True)
     trace_path = args.output / "trace.jsonl"
     trace_path.write_text("", encoding="utf-8")
     log_event(trace_path, started, "startup", "parse_arguments", {"model": args.model})
+    log_event(trace_path, started, "budget", "initialize", budget.snapshot())
     try:
         case = load_case(args.input)
-        excerpt = get_excerpt(case)
         log_event(trace_path, started, "input", "validate", {
-            "status": "passed", "fields": sorted(case.keys()), "excerpt_chars": len(excerpt)
+            "status": "passed", "fields": sorted(case.keys())
         })
-        log_event(trace_path, started, "planning", "model_request", {"request_number": 1})
-        completion = complete(args.model, planning_messages(case, excerpt))
-        log_event(trace_path, started, "planning", "model_response", {
-            "request_number": 1,
-            "prompt_tokens": completion.prompt_tokens,
-            "completion_tokens": completion.completion_tokens,
-            "call_elapsed_seconds": round(completion.elapsed_seconds, 3),
-            "response_id": completion.response_id,
-        })
-        plan = parse_plan(completion.content)
-        validate_plan(plan, excerpt)
-        log_event(trace_path, started, "planning", "validate_plan", {"status": "passed"})
-        (args.output / "plan.json").write_text(
-            json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        paper = prepare_paper(case)
+        sheets = make_page_sheets(paper.pages) if paper.pages else paper.figure_sheets
+        visual_kind = "PDF page" if paper.pages else "HTML figure"
+        images = [
+            {
+                "kind": visual_kind,
+                "item_numbers": list(sheet.page_numbers),
+                "image_url": sheet_data_url(sheet),
+            }
+            for sheet in sheets
+        ]
+        payload = {
+            "source_url": case["source_url"],
+            "focus": case["focus"],
+            "audience": case["audience"],
+            "paper_text": paper.text,
+            "images": images,
+        }
+        (args.output / "model_input.json").write_text(
+            json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8"
         )
-        page_path = args.output / "index.html"
-        page_path.write_text(scaffold_page(case, plan), encoding="utf-8")
-        log_event(trace_path, started, "output", "write_scaffold", {
-            "status": "planning_preview_only", "path": "index.html"
-        })
+        (args.output / "paper.txt").write_text(paper.text + "\n", encoding="utf-8")
+        manifest = {
+            "source_method": paper.method,
+            "paper_chars": len(paper.text),
+            "pdf_pages": len(paper.pages),
+            "html_figures": sum(len(sheet.page_numbers) for sheet in paper.figure_sheets),
+            "detected_tables": paper.html_tables + sum(len(page.tables) for page in paper.pages),
+            "embedded_pdf_images": sum(len(page.embedded_images) for page in paper.pages),
+            "visual_sheets": len(sheets),
+            "fits_one_image_request": len(sheets) <= MAX_IMAGES_PER_CALL,
+            "visual_batches_if_needed": len(visual_batches(sheets)) if len(sheets) > MAX_IMAGES_PER_CALL else 0,
+            "model_requests_used": 0,
+        }
+        (args.output / "manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        log_event(trace_path, started, "source", "prepare_model_input", manifest)
         return 0
-    except (OSError, ValueError, json.JSONDecodeError, ModelCallError) as exc:
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
         log_event(trace_path, started, "failure", "abort", {
-            "error_type": type(exc).__name__, "message": str(exc)
+            "error_type": type(exc).__name__, "message": str(exc),
+            "budget": budget.snapshot(),
         })
         print(f"Error: {exc}", file=sys.stderr)
         return 1
