@@ -1,0 +1,2 @@
+# Step 1 uses the Python 3.11 standard library only.
+# Pin external runtime dependencies here when the next steps add them.
