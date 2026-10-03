@@ -1,2 +1,6 @@
-# Step 1 uses the Python 3.11 standard library only.
-# Pin external runtime dependencies here when the next steps add them.
+requests==2.34.2
+beautifulsoup4==4.15.0
+PyMuPDF==1.28.2
+pymupdf4llm==1.28.2
+quickjs==1.19.4
+certifi==2026.7.22

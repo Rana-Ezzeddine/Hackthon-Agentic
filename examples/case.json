@@ -1,0 +1,8 @@
+{
+  "source_url": "https://example.org/synthetic-entropy-note",
+  "focus": "Explain discrete entropy with two meaningful controls and show intermediate contributions.",
+  "audience": "Engineering undergraduate",
+  "title": "Synthetic Entropy Teaching Note",
+  "authors": "Paper to Playground team",
+  "excerpt": "For probabilities p_i summing to one, entropy is H = -sum_i p_i log2(p_i) bits. The contribution of a zero-probability outcome is defined as zero. A certain outcome has zero entropy. Four equally likely outcomes have entropy two bits."
+}

@@ -1,6 +1,9 @@
 {
-  "source_url": "https://example.org/synthetic-teaching-note",
-  "focus": "Explain discrete entropy with small probabilities and two controls.",
-  "audience": "Engineering undergraduate",
-  "excerpt": "Synthetic test passage: For probabilities p_i summing to one, entropy is H = -sum_i p_i log2(p_i) bits. The contribution of a zero-probability outcome is defined as zero. Four equally likely outcomes have entropy two bits."
+  "source_url": "https://example.org/synthetic-entropy-note",
+  "focus": "Explain discrete entropy: show each probability contribution, handle p=0, and demonstrate certainty versus four equally likely outcomes.",
+  "audience": "Second-year engineering undergraduate familiar with logarithms",
+  "title": "Synthetic Entropy Teaching Note",
+  "authors": "Paper to Playground team",
+  "section": "§6 Entropy",
+  "excerpt": "Section 6: Entropy. For probabilities p_i summing to one, entropy is H = -sum_i p_i log2(p_i) bits. The contribution of a zero-probability outcome is defined as zero. A certain outcome has zero entropy. Four equally likely outcomes have entropy two bits. This synthetic passage is an integration fixture, not a research paper."
 }

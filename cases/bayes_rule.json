@@ -1,0 +1,6 @@
+{
+  "source_url": "https://example.org/bayes-rule-note",
+  "focus": "Explain Bayes' rule for a binary diagnostic test. Control prevalence, sensitivity, and false-positive rate; show the numerator, evidence denominator, and posterior; explore rare conditions and improved specificity.",
+  "audience": "First-year engineering undergraduate",
+  "excerpt": "Bayes' rule gives P(D|+) = P(+|D)P(D) / P(+). For a binary condition, P(+) = P(+|D)P(D) + P(+|not D)P(not D). The posterior therefore depends on both test characteristics and the prior prevalence."
+}

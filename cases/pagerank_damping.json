@@ -1,0 +1,6 @@
+{
+  "source_url": "https://example.org/pagerank-note",
+  "focus": "Explain one PageRank update on a small editable transition matrix. Control damping and teleport distribution; show link contribution, teleport contribution, next rank vector, and conservation of total probability.",
+  "audience": "Engineering undergraduate familiar with matrices and Markov chains",
+  "excerpt": "Given a column-stochastic link matrix M, damping factor alpha between zero and one, and teleport distribution v, a PageRank iteration is r_next = alpha M r + (1-alpha)v. If r and v sum to one and M is column stochastic, the updated vector also sums to one."
+}

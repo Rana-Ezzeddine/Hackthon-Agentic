@@ -1,0 +1,6 @@
+{
+  "source_url": "https://example.org/softmax-temperature-note",
+  "focus": "Explain softmax temperature with editable logits and temperature. Show scaled logits, exponentials after max subtraction, normalized probabilities, and the limiting behavior of low versus high temperature.",
+  "audience": "Engineering undergraduate comfortable with exponentials",
+  "excerpt": "For logits z_i and positive temperature T, p_i = exp(z_i/T) / sum_j exp(z_j/T). Subtracting the largest scaled logit before exponentiation leaves the probabilities unchanged and improves numerical stability. Lower positive temperature concentrates probability on larger logits, while higher temperature makes the distribution flatter."
+}

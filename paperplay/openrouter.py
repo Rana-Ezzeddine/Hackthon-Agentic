@@ -1,65 +1,44 @@
-"""One OpenRouter chat-completions call with verifiable usage accounting."""
-
+"""Budgeted OpenRouter Chat Completions client."""
 from __future__ import annotations
-
-import json
-import os
-import time
+import json, os, time
+import requests
 from dataclasses import dataclass
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from .config import GEN_TOKENS
 
-
-ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-
-
-@dataclass(frozen=True)
+class ModelCallError(RuntimeError): pass
+@dataclass
 class Completion:
-    content: str
-    prompt_tokens: int
-    completion_tokens: int
-    elapsed_seconds: float
-    response_id: str | None
+    content:str; prompt_tokens:int; completion_tokens:int; reasoning_tokens:int; elapsed_seconds:float; response_id:str|None
 
-
-class ModelCallError(RuntimeError):
-    pass
-
-
-def complete(model_id: str, messages: list[dict[str, str]], *, timeout: float = 90.0) -> Completion:
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not key:
-        raise ModelCallError("OPENROUTER_API_KEY is not set.")
-    payload = {
-        "model": model_id,
-        "messages": messages,
-        "max_completion_tokens": 2500,
-        "temperature": 0.2,
-        "stream": False,
-    }
-    request = Request(
-        ENDPOINT,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        method="POST",
-    )
-    started = time.monotonic()
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            data = json.load(response)
-    except HTTPError as exc:
-        # Do not log raw response bodies: they can contain sensitive request data.
-        raise ModelCallError(f"OpenRouter returned HTTP {exc.code}.") from None
-    except (URLError, TimeoutError) as exc:
-        raise ModelCallError(f"OpenRouter request failed: {type(exc).__name__}.") from None
-    elapsed = time.monotonic() - started
-    try:
-        content = data["choices"][0]["message"]["content"]
-        usage = data["usage"]
-        prompt_tokens = int(usage["prompt_tokens"])
-        completion_tokens = int(usage["completion_tokens"])
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("empty model response")
-        return Completion(content, prompt_tokens, completion_tokens, elapsed, data.get("id"))
-    except (KeyError, IndexError, TypeError, ValueError) as exc:
-        raise ModelCallError(f"OpenRouter response was incomplete: {type(exc).__name__}.") from None
+class OpenRouter:
+    endpoint="https://openrouter.ai/api/v1/chat/completions"
+    def __init__(self,model,budget,trace): self.model,self.budget,self.trace=model,budget,trace
+    def complete(self,messages,max_tokens=GEN_TOKENS,action="generate"):
+        key=os.getenv("OPENROUTER_API_KEY","").strip()
+        if not key: raise ModelCallError("OPENROUTER_API_KEY is not set.")
+        if not self.budget.can_afford(max_tokens): raise ModelCallError("Request budget exhausted.")
+        reasoning_limit=1_500 if action in ("repair","parse_repair") else 7_000
+        payload={"model":self.model,"messages":messages,"max_tokens":max_tokens,"temperature":.2,"response_format":{"type":"json_object"},"reasoning":{"effort":"low","max_tokens":reasoning_limit},"usage":{"include":True}}
+        last=None
+        for attempt in range(2):
+            self.budget.requests+=1; started=time.monotonic(); status=None
+            try:
+                response=requests.post(self.endpoint,json=payload,headers={"Authorization":"Bearer "+key,"Content-Type":"application/json"},timeout=min(240,max(10,self.budget.remaining_s-20)))
+                status=response.status_code
+                if status in (400,422) and attempt==0:
+                    payload.pop("response_format",None); payload.pop("reasoning",None)
+                    for message in payload["messages"]:
+                        if isinstance(message.get("content"),list):
+                            message["content"]="\n".join(x.get("text","") for x in message["content"] if x.get("type")=="text")
+                    last="unsupported optional parameter or image input"; continue
+                response.raise_for_status(); data=response.json(); usage=data.get("usage") or {}; details=usage.get("completion_tokens_details") or {}
+                content=data["choices"][0]["message"].get("content")
+                if not isinstance(content,str) or not content.strip(): raise ValueError("empty text completion")
+                out=Completion(content,int(usage.get("prompt_tokens",0)),int(usage.get("completion_tokens",0)),int(details.get("reasoning_tokens",0)),time.monotonic()-started,data.get("id"))
+                self.budget.record(out.prompt_tokens,out.completion_tokens,out.reasoning_tokens)
+                self.trace.log("llm",action,"ok",model=self.model,prompt_tokens=out.prompt_tokens,completion_tokens=out.completion_tokens,reasoning_tokens=out.reasoning_tokens,total_tokens=out.prompt_tokens+out.completion_tokens,elapsed_s=round(out.elapsed_seconds,3),http=status,request_no=self.budget.requests,generation_id=out.response_id)
+                return out
+            except (requests.RequestException,KeyError,IndexError,TypeError,ValueError) as exc:
+                last=type(exc).__name__; self.trace.log("llm",action,"retry" if attempt==0 else "fail",http=status,request_no=self.budget.requests,error=last)
+                if attempt==0 and self.budget.can_afford(max_tokens): time.sleep(2); continue
+        raise ModelCallError("OpenRouter request failed: %s."%last)

@@ -1,0 +1,6 @@
+{
+  "source_url": "https://people.math.harvard.edu/~ctm/home/text/others/shannon/entropy/entropy.pdf",
+  "focus": "§6 entropy: edit a small probability distribution and outcome count; show each -p log2 p contribution and total bits; demonstrate certainty gives 0 bits and four equal outcomes give 2 bits; handle p=0.",
+  "audience": "Engineering undergraduate familiar with logarithms",
+  "excerpt": "The entropy H of a discrete set of probabilities is H = -K sum p_i log p_i. For base two and K=1 the unit is the bit. The limiting contribution at p_i=0 is taken as zero. Entropy is zero for certainty and is maximal for an equal distribution over the available outcomes."
+}

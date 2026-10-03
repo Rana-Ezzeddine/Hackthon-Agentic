@@ -1,0 +1,6 @@
+{
+  "source_url": "https://example.org/rc-low-pass-note",
+  "focus": "Explain the magnitude response of a first-order RC low-pass filter. Control resistance, capacitance, and frequency; show angular frequency, time constant, cutoff frequency, gain, and the -3 dB point.",
+  "audience": "Electrical engineering undergraduate familiar with complex impedance",
+  "excerpt": "For a first-order RC low-pass filter, H(j omega) = 1 / (1 + j omega R C). Its magnitude is 1 / sqrt(1 + (omega R C)^2), where omega = 2 pi f. The cutoff frequency is f_c = 1/(2 pi R C), at which the magnitude equals 1/sqrt(2), approximately -3.01 dB."
+}
