@@ -1,5 +1,7 @@
 # Paper to Playground
 
+Built by Nadine's Agentic AI Hackathon team.
+
 This CLI turns a paper URL, a focus, and an audience into one source-grounded, self-contained interactive HTML page. The page is built by **editing a reusable focus-guided template**, not by asking the model to write a new document from scratch.
 
 ## Run

@@ -12,6 +12,13 @@ def _clean_text(node):
     for bad in clone.select("script,style,nav,header,footer,noscript,form,.ltx_page_footer"): bad.decompose()
     return re.sub(r"\s+"," ",clone.get_text(" ",strip=True)).strip()
 
+def _clean_author(node):
+    clone=BeautifulSoup(str(node),"html.parser")
+    for marker in clone.select("sup,.ltx_note,.ltx_note_mark,.ltx_ERROR"): marker.decompose()
+    value=re.sub(r"\bfootnotemark\b\s*:?\s*\d*","",clone.get_text(" ",strip=True),flags=re.I)
+    value=re.sub(r"(?:^|\s)\d+(?=\s|$)"," ",value)
+    return re.sub(r"\s+"," ",value).strip(" ,;·")
+
 def _local_section_text(node):
     """Keep section content once, without repeating nested subsections."""
     copy=BeautifulSoup(str(node),"html.parser")
@@ -25,7 +32,7 @@ def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
     title=soup.select_one("h1.ltx_title_document") or soup.find("h1") or soup.find("title")
     record.meta["title"]=_clean_text(title) if title else ""
     for creator in soup.select(".ltx_creator.ltx_role_author"):
-        person=creator.select_one(".ltx_personname"); name=_clean_text(person) if person else ""
+        person=creator.select_one(".ltx_personname"); name=_clean_author(person) if person else ""
         aff=[_clean_text(x) for x in creator.select(".ltx_role_affiliation")]
         email=creator.select_one(".ltx_role_email")
         if name: record.meta["authors"].append({"name":name,"affiliations":aff,"email":_clean_text(email) if email else ""})
@@ -71,8 +78,10 @@ def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
     for idx,box in enumerate(soup.select("figure.ltx_table")):
         cap=box.find("figcaption"); rows=[]
         for tr in box.select("tr"): rows.append([_clean_text(cell) for cell in tr.select("th,td")])
-        tid=box.get("id","table-%d"%(idx+1)); tag=box.select_one(".ltx_tag_table")
-        record.tables.append({"id":tid,"number":_clean_text(tag) if tag else str(idx+1),"caption":_clean_text(cap) if cap else "","section":"","rows":rows,"markdown":"\n".join("|"+"|".join(r)+"|" for r in rows)})
+        tid=box.get("id","table-%d"%(idx+1)); tag=box.select_one(".ltx_tag_table"); parent=box.find_parent("section"); section_id=parent.get("id","") if parent else ""
+        record.tables.append({"id":tid,"number":_clean_text(tag) if tag else str(idx+1),"caption":_clean_text(cap) if cap else "","section":section_id,"rows":rows,"markdown":"\n".join("|"+"|".join(r)+"|" for r in rows)})
+        for section in record.sections:
+            if section.anchor==section_id: section.tab_ids.append(tid); break
     for node in soup.select(".ltx_float_algorithm,.ltx_listing"):
         record.algorithms.append({"id":node.get("id","") ,"caption":_clean_text(node.find("figcaption")) if node.find("figcaption") else "","text":_clean_text(node)})
     for node in soup.select(".ltx_theorem"):

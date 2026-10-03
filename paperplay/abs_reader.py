@@ -28,5 +28,8 @@ def read_abs(data: bytes) -> dict:
     lic=soup.select_one(".abs-license a[href]")
     if lic: meta["license"]=lic.get("href","")
     hist=soup.select_one(".submission-history")
-    if hist: meta["dates"]={"history":[x.strip() for x in hist.get_text("\n").splitlines() if x.strip()]}
+    if hist:
+        text=re.sub(r"\s+"," ",hist.get_text(" ",strip=True)).replace("Submission history","").strip()
+        entries=re.findall(r"\[v\d+\]\s*.*?(?=\s*\[v\d+\]|$)",text)
+        meta["dates"]={"history":[re.sub(r"\s*\([^)]*bytes\)\s*$","",x).strip() for x in entries] or ([text] if text else [])}
     return meta

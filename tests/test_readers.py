@@ -88,3 +88,16 @@ def test_abstract_redirect_falls_back_to_pdf(monkeypatch):
 
 def test_abs_reader_extracts_versioned_html_url():
     assert read_abs(ABS_HTML)["urls"]["html"] == "https://arxiv.org/html/1706.03762v7"
+
+
+def test_author_markers_and_submission_history_are_cleaned():
+    paper=read_html(b'''<h1 class="ltx_title_document">Paper</h1><div class="ltx_creator ltx_role_author"><span class="ltx_personname">Ada Lovelace<sup>1</sup> footnotemark: 1</span><span class="ltx_role_affiliation">Analytical Institute</span></div><section class="ltx_section" id="S1"><h2 class="ltx_title">1 Method</h2><p>Enough source material to parse correctly.</p></section>''',"https://arxiv.org/html/1")
+    assert paper.meta["authors"][0]["name"]=="Ada Lovelace"
+    meta=read_abs(b'''<meta name="citation_title" content="Paper"><div class="submission-history">Submission history [v1] Fri, 1 Jan 2021 10:00:00 UTC (12,345 bytes) [v2] Sat, 2 Jan 2021 10:00:00 UTC (13,000 bytes)</div>''')
+    assert len(meta["dates"]["history"])==2 and meta["dates"]["history"][0].startswith("[v1]")
+
+
+def test_table_is_attached_to_its_section():
+    paper=read_html(b'''<h1>Paper</h1><section class="ltx_section" id="S3"><h2 class="ltx_title">3 Results</h2><figure class="ltx_table" id="S3.T1"><figcaption><span class="ltx_tag_table">Table 1</span> Accuracy</figcaption><table><tr><th>Method</th><th>Score</th></tr><tr><td>A</td><td>0.9</td></tr></table></figure></section>''',"https://arxiv.org/html/1")
+    assert paper.tables[0]["section"]=="S3"
+    assert paper.sections[0].tab_ids==["S3.T1"]

@@ -8,6 +8,7 @@ STOP={"the","and","for","with","that","this","from","into","what","why","how","s
 class PreparedSource:
     context: str; selected_anchors: list[str]; chars: int; mode: str
     retrieval_errors: list[str]=field(default_factory=list); gated_figures: list[dict]=field(default_factory=list)
+    gated_tables: list[dict]=field(default_factory=list)
 
 def parse_focus(text):
     secs=re.findall(r"(?:section|sec\.?|§)\s*([A-Z]?\d+(?:\.\d+)*)",text,re.I)
@@ -39,18 +40,27 @@ def select(record, case, trace):
     blocks.append("[SELECTED SOURCE MATERIAL]")
     for s in ordered:
         block="[§%s %s] %s"%(s.number or "?",s.heading,s.text)
-        if sum(map(len,blocks))+len(block)>12000: continue
+        if sum(map(len,blocks))+len(block)>10000: continue
         blocks.append(block)
         for eq in record.equations:
             if eq.get("id") in s.eq_ids: blocks.append("[Eq. (%s)] $%s$"%(eq.get("number",""),eq.get("latex","")))
+    selected={s.anchor for s in ordered}
+    gated_tables=[]
+    for table in record.tables:
+        hay=(str(table.get("caption",""))+" "+str(table.get("markdown",""))).lower()
+        relevant=table.get("section") in selected or sum(1 for word in wanted["keywords"] if word in hay)>=2
+        if relevant:
+            gated_tables.append(table)
+            block="[TABLE %s · %s] %s\n%s"%(table.get("id",""),table.get("number",""),table.get("caption",""),table.get("markdown",""))
+            if len("\n".join(blocks))+len(block)<12000: blocks.append(block)
+    cited={key for section in ordered for key in section.cite_keys}
     for ref in record.references:
-        if len("\n".join(blocks))+len(ref.get("text",""))<12000: blocks.append("[REFERENCE %s] %s"%(ref.get("number",""),ref.get("text","")))
+        if ref.get("key") in cited and len("\n".join(blocks))+len(ref.get("text",""))<12000: blocks.append("[REFERENCE %s] %s"%(ref.get("number",""),ref.get("text","")))
     context="\n".join(blocks)[:12000]
     gated=[]
     for fig in record.figures:
         cap=fig.get("caption","").lower(); n=str(fig.get("number",""))
         if n in wanted["figures"] or sum(1 for w in wanted["keywords"] if w in cap)>=2: gated.append(fig)
-    result=PreparedSource(context,[s.anchor for s in ordered],len(context),record.mode,gated_figures=gated[:2])
-    trace.log("select","rank_sections","ok",selected=result.selected_anchors,chars=result.chars,figure_candidates=[f.get("id") for f in result.gated_figures])
+    result=PreparedSource(context,[s.anchor for s in ordered],len(context),record.mode,gated_figures=gated[:2],gated_tables=gated_tables[:3])
+    trace.log("select","rank_sections","ok",selected=result.selected_anchors,chars=result.chars,figure_candidates=[f.get("id") for f in result.gated_figures],table_candidates=[t.get("id") for t in result.gated_tables])
     return result
-
