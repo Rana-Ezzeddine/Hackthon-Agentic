@@ -12,6 +12,14 @@ def _clean_text(node):
     for bad in clone.select("script,style,nav,header,footer,noscript,form,.ltx_page_footer"): bad.decompose()
     return re.sub(r"\s+"," ",clone.get_text(" ",strip=True)).strip()
 
+def _local_section_text(node):
+    """Keep section content once, without repeating nested subsections."""
+    copy=BeautifulSoup(str(node),"html.parser")
+    root=copy.find("section")
+    if root is None:return _clean_text(node)
+    for child in root.find_all("section"):child.decompose()
+    return _clean_text(root)
+
 def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
     soup=BeautifulSoup(data,"html.parser"); record=PaperRecord(mode=mode)
     title=soup.select_one("h1.ltx_title_document") or soup.find("h1") or soup.find("title")
@@ -35,7 +43,7 @@ def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
             heading=node.select_one(":scope > [class*=ltx_title]")
             heading_text=_clean_text(heading) if heading else "Section %d"%(idx+1)
             num=(re.search(r"(?:^|\s)([A-Z]?\d+(?:\.\d+)*)",heading_text) or [None,""])[1]
-            section=Section(anchor=node.get("id", "sec-%d"%(idx+1)),number=num,level=level,heading=heading_text,text=_clean_text(node))
+            section=Section(anchor=node.get("id", "sec-%d"%(idx+1)),number=num,level=level,heading=heading_text,text=_local_section_text(node))
             record.sections.append(section)
     else:
         headings=soup.find_all(["h1","h2","h3","h4"])
@@ -62,7 +70,7 @@ def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
             if section.anchor==section_id: section.fig_ids.append(fid); break
     for idx,box in enumerate(soup.select("figure.ltx_table")):
         cap=box.find("figcaption"); rows=[]
-        for tr in box.select("tr")[:15]: rows.append([_clean_text(cell) for cell in tr.select("th,td")])
+        for tr in box.select("tr"): rows.append([_clean_text(cell) for cell in tr.select("th,td")])
         tid=box.get("id","table-%d"%(idx+1)); tag=box.select_one(".ltx_tag_table")
         record.tables.append({"id":tid,"number":_clean_text(tag) if tag else str(idx+1),"caption":_clean_text(cap) if cap else "","section":"","rows":rows,"markdown":"\n".join("|"+"|".join(r)+"|" for r in rows)})
     for node in soup.select(".ltx_float_algorithm,.ltx_listing"):

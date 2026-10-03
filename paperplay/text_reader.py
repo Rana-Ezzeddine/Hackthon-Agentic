@@ -13,6 +13,9 @@ def read_text(text: str, hints=None, mode="supplied_excerpt") -> PaperRecord:
     if not matches:
         record.sections = [Section(anchor="excerpt", heading=hints.get("section", "Provided excerpt"), text=text.strip())]
     else:
+        preamble=text[:matches[0].start()].strip()
+        if preamble:
+            record.sections.append(Section(anchor="preamble", heading="Paper preamble", text=preamble))
         for i, match in enumerate(matches):
             end = matches[i+1].start() if i+1 < len(matches) else len(text)
             heading = match.group(2).strip(); number = (re.match(r"([A-Z]?\d+(?:\.\d+)*)", heading) or [None, ""])[1]
@@ -25,4 +28,3 @@ def _extract_equations(record):
         for i, match in enumerate(re.finditer(r"(?:Eq(?:uation)?\.?\s*\(?([\w.-]+)\)?[^\n]*?[:=]\s*)?\$([^$]{2,300})\$", section.text, re.I)):
             num = match.group(1) or str(len(record.equations)+1); eid = "eq-%s" % num
             record.equations.append({"id":eid,"number":num,"latex":match.group(2),"section":section.number or section.heading}); section.eq_ids.append(eid)
-

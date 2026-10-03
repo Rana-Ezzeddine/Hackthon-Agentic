@@ -1,79 +1,43 @@
-# Paper → Playground
+# Paper to Playground
 
-Paper → Playground is a reusable Python agent that turns a paper URL, focus, and audience into one source-grounded, audience-specific interactive HTML explanation. The generated page is self-contained and works offline; the agent, checks, trace, and fallback behavior are the submission.
-
-## Team
-
-Built by Nadine's Agentic AI Hackathon team.
+This CLI turns a paper URL, a focus, and an audience into one source-grounded, self-contained interactive HTML page. The page is built by **editing a reusable focus-guided template**, not by asking the model to write a new document from scratch.
 
 ## Run
 
-Python 3.11 is required.
+Install Python 3.11+ dependencies from `requirements.txt`, set `OPENROUTER_API_KEY`, and run:
 
 ```bash
-python -m pip install -r requirements.txt
-export OPENROUTER_API_KEY='your-openrouter-key'
 python agent.py --input case.json --output out --model MODEL_ID
 ```
 
-The exact `MODEL_ID` argument is sent to OpenRouter. The key is read only from the environment and is never included in output or traces. Successful runs write exactly:
+The input JSON needs `source_url`, `focus`, and `audience`. A successful run writes `out/index.html` and `out/trace.jsonl`. The generated page embeds its CSS, JavaScript, and selected source visuals; it makes no runtime network request.
 
-```text
-out/index.html
-out/trace.jsonl
-```
+## How HTML is generated
 
-`index.html` has embedded CSS, JavaScript, SVG, and any selected images. It has no CDN, remote font, runtime request, server, or build-step dependency.
+1. The agent retrieves the complete available paper, trying arXiv HTML first and PDF when necessary. It parses all sections, equations, tables, figures, references, and metadata. PDF pages are also rendered as images so non-text material remains available.
+2. `paperplay/full_source.py` serializes the complete parsed record **without ranking or clipping it by focus**. Available figure/page images are attached to the model request with stable IDs. If a model endpoint rejects the images, the request fails rather than silently dropping them.
+3. `paperplay/prompts.py` asks the model to inspect the whole representation, establish coverage of the requested focus, and return a `focus-guided-v2` JSON edit specification. The prompt includes the template contract and a brief overview of the interaction gallery. The gallery is inspiration, not an allowlist: the model may adapt or create a paper-specific visual.
+4. `paperplay/render.py` applies those edits to `templates/focus_page.html` and its bundled `focus_style.css`. The model can produce any number of learning units, explanatory blocks, views, and guided explorations. The outer path remains focus → integrated learning units → synthesis → source and limits.
+5. Each learning unit's calculation drives its controls, visual views, metrics, guided presets, and live notes. The guide is rendered **inside** the same fullscreen-capable studio as the visual. Rich explanatory HTML is sanitized; custom CSS is scoped to the unit; paper-specific compute and draw functions are checked before release.
+6. Deterministic checks evaluate calculations, guided expectations, bindings, paper anchors, page structure, size, and offline behavior. The model can repair failed fields within the request budget. A failed or incomplete generation exits nonzero; it is not presented as a successful paper explanation.
 
-## Input
+The human-viewable visual design reference is `templates/interaction_gallery.html`. It demonstrates eight broad interaction ideas. It is deliberately **not** a fixed set of scientific templates; complex or unusual papers may need a different view produced within the same focus-guided page shell.
 
-`case.json` is UTF-8 JSON (maximum 2 MB) with three required non-empty strings:
+## Important limits
 
-- `source_url`: an HTTP(S) paper URL
-- `focus`: the concept and required learning outcomes
-- `audience`: assumed vocabulary, mathematics, and prerequisites
+- The full paper is sent as available in the parsed record. A source that cannot be retrieved causes a clear failure. Extraction warnings are included in the model input.
+- The generator does not know whether the configured OpenRouter model accepts image parts or how much complete-paper context it supports. Those capabilities must be verified with the selected model. It does not silently truncate source material or remove images on an unsupported-parameter retry.
+- Source claims are checked against text anchors, and calculations are exercised, but automated checks cannot prove that an explanation is scientifically complete or pedagogically optimal. Review generated pages before submission.
+- The model's custom visual is constrained to self-contained markup produced by a pure drawing function, with scoped CSS. The base page structure and interaction runtime remain reusable.
 
-The agent recognizes common excerpt keys (`excerpt`, `paper_excerpt`, `source_excerpt`, `source_text`, and related names), nested source objects, excerpt lists, and long extra string fields. Short extra strings become metadata hints. See `case.example.json`.
+## Files
 
-## Architecture
+- `templates/focus_page.html`: production page structure and interaction runtime.
+- `templates/focus_style.css`: visual system inlined into final HTML.
+- `templates/interaction_gallery.html`: visual inspiration gallery.
+- `paperplay/full_source.py`: complete-paper representation for the model.
+- `paperplay/prompts.py`: current exact generation, repair, and parsing prompts.
+- `paperplay/render.py`: applies model edits to the template.
+- `paperplay/checks.py`: executable and structural release checks.
 
-1. Validate and normalize the case.
-2. Prefer a supplied excerpt; otherwise try arXiv HTML, ar5iv, PDF, then generic HTML with strict timeout and size caps.
-3. Parse the source into a normalized `PaperRecord` with metadata, sections, equations, figures, tables, and references.
-4. Rank source sections against `focus`; `audience` never changes source selection.
-5. Ask the selected OpenRouter model for one compact `PlaygroundSpec` containing explanation, deterministic compute code, visual code, controls, explorations, claims, and tests.
-6. Fill the flexible presentation shell with a governed, audience-specific teaching formulation and interactive component, then run deterministic checks C0–C17. JavaScript is executed in isolated QuickJS contexts.
-7. Send only failing fields and relevant source passages for up to two repairs. If failures remain, degrade optional visuals or relabel ungrounded claims visibly; mathematical failures are never hidden.
-
-The budget is capped at 10 API requests, 30,000 completion tokens, and 540 seconds. One request and 1,000 tokens remain reserved. Normal runs use one generation call and zero or one repair. Every attempt, check, repair, failure, timing, and token count is recorded in `trace.jsonl`; prompts, source text, model output, credentials, and hidden reasoning are not.
-
-## Failure and exit policy
-
-- `0`: the page is usable (intro, executable compute, at least one view, and at least two working controls), even if non-critical failures are disclosed.
-- `2`: only a static or unusable partial page could be produced.
-- `1`: invalid input or an unrecoverable crash. A minimal error page is still written.
-
-When paper retrieval or model generation is unavailable, the run fails soft with a clearly labeled illustrative fallback. It never presents fallback values as paper results.
-
-## Development
-
-```bash
-python -m pip install -r requirements-dev.txt
-pytest -q
-```
-
-Set `NO_FETCH=1` to exercise the OpenRouter-only network condition. Set `VISION=off` to disable figure attachments (vision gating is conservative and captions remain available).
-
-## Repository map
-
-`agent.py` owns orchestration and exit codes. `paperplay/` contains input, acquisition, parsing, selection, prompts, OpenRouter budgeting, specification handling, checks, degradation, trace, and rendering modules. `paperplay/design.py` governs pedagogical formulations, interaction families, layouts, diagrams, discovery formats, context formats, and palettes. `templates/page.html` is the flexible presentation shell and offline interaction runtime. `tests/` holds contract and parser fixtures; `cases/` contains practice cases; `examples/` contains one generated example pair.
-
-## Governed visual composition
-
-The supplied presentation shell provides broad regions for orientation, interaction, guided discovery, and source context. Everything inside those regions is generated for the requested focus and audience. The model chooses whether orientation should be equation-first, visual-first, intuition-first, a derivation, a comparison, or a worked example. It also chooses an interaction family (matrix lab, parameter sweep, distribution lab, network flow, process simulator, comparator, or custom canvas), layout, primary diagram, exploration format, context format, and palette.
-
-The model generates the actual controls, deterministic computation, intermediate values, view bindings, custom SVG, explanations, explorations, claims, and tests. Governance validates every choice against an allowlist, keeps model text out of raw HTML, sanitizes the only SVG insertion point, and rejects unsafe colors or components. If design direction is omitted, subject-aware defaults select a suitable formulation without changing the scientific content.
-
-## Credits and licenses
-
-This project uses Requests (Apache-2.0), Beautiful Soup (MIT), certifi (MPL-2.0), QuickJS through its Python binding, and PyMuPDF/PyMuPDF4LLM (AGPL-3.0 or Artifex commercial license). No third-party source code is copied into the repository. Review the AGPL obligations before distributing a hosted or proprietary derivative.
+Tests: `python -m pytest -q` after installing `requirements-dev.txt`.

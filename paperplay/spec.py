@@ -17,6 +17,8 @@ def patch_merge(spec,patch):
 
 def normalize_spec(spec,prepared):
     """Normalize harmless model formatting variance without changing mathematics."""
+    if spec.get("format")=="focus-guided-v2":
+        return spec
     plan=spec.get("plan") if isinstance(spec.get("plan"),dict) else {}
     figures=plan.get("figures",[])
     if isinstance(figures,list):
@@ -39,6 +41,8 @@ def normalize_spec(spec,prepared):
     return normalize_design(spec)
 
 def validate_schema(spec):
+    if spec.get("format")=="focus-guided-v2":
+        return _validate_v2(spec)
     errors=[]; required=("plan","title","citation","intro","mechanism","symbols","controls","compute","views","intermediates","explorations","limitation","claims","tests","design")
     for key in required:
         if key not in spec: errors.append("missing "+key)
@@ -61,4 +65,61 @@ def validate_schema(spec):
         if c.get("type") not in ("slider","number","toggle","select","matrix"): errors.append("invalid control type")
         if c.get("role") not in ("paper_variable","result_selector","view_toggle"): errors.append("invalid control role")
     errors.extend(validate_design(spec))
+    return errors
+
+
+def _validate_v2(spec):
+    errors=[]
+    for key in ("title","focus_statement","summary_html","coverage","units","synthesis_html","limitations_html","claims","tests"):
+        if key not in spec:errors.append("missing "+key)
+    units=spec.get("units",[])
+    if not isinstance(units,list) or not units:return errors+["need at least one learning unit"]
+    ids=[];total_explorations=0
+    for index,unit in enumerate(units):
+        if not isinstance(unit,dict):errors.append("unit must be an object");continue
+        uid=unit.get("id")
+        if not isinstance(uid,str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*",uid):errors.append("invalid unit id")
+        elif uid in ids:errors.append("duplicate unit id")
+        else:ids.append(uid)
+        for field in ("title","question","orientation_html","interpretation_html"):
+            if not isinstance(unit.get(field),str) or not unit[field].strip():errors.append("missing unit "+field)
+        interaction=unit.get("interaction",{})
+        if not isinstance(interaction,dict):errors.append("missing unit interaction");continue
+        controls=interaction.get("controls",[]);views=interaction.get("views",[])
+        if not isinstance(controls,list) or not controls:errors.append("unit needs controls");controls=[]
+        if not isinstance(views,list) or not views:errors.append("unit needs views");views=[]
+        cids=set()
+        for control in controls:
+            if not isinstance(control,dict):errors.append("invalid control");continue
+            cid=control.get("id")
+            if not isinstance(cid,str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*",cid) or cid in cids:errors.append("invalid or duplicate control id")
+            else:cids.add(cid)
+            if control.get("type") not in {"slider","number","toggle","select","matrix"}:errors.append("invalid control type")
+            if "default" not in control:errors.append("control missing default")
+        for view in views:
+            if not isinstance(view,dict) or view.get("type") not in {"bar","line","heatmap","matrix","table","custom"}:errors.append("invalid view")
+            elif view.get("type")!="custom" and not view.get("bind"):errors.append("view missing bind")
+        if any(isinstance(view,dict) and view.get("type")=="custom" for view in views) and not interaction.get("draw"):
+            errors.append("custom view needs draw")
+        if not isinstance(interaction.get("compute"),str) or not interaction["compute"].strip():errors.append("missing unit compute")
+        if not isinstance(interaction.get("draw",""),str):errors.append("invalid unit draw")
+        steps=unit.get("explorations",[])
+        if not isinstance(steps,list):errors.append("invalid explorations");continue
+        total_explorations+=len(steps)
+        for step in steps:
+            if not isinstance(step,dict) or not all(isinstance(step.get(k),str) and step[k].strip() for k in ("title","prediction","observe","why","expect")):errors.append("incomplete exploration")
+            if not isinstance(step,dict) or not isinstance(step.get("preset"),dict) or not set(step["preset"]).issubset(cids):errors.append("invalid exploration preset")
+    if total_explorations<2:errors.append("need at least two guided explorations")
+    coverage=spec.get("coverage",[])
+    if not isinstance(coverage,list) or not coverage:errors.append("focus coverage is empty")
+    else:
+        for item in coverage:
+            if not isinstance(item,dict) or not item.get("need") or item.get("unit_id") not in ids:errors.append("invalid focus coverage")
+    if not isinstance(spec.get("claims"),list) or not spec["claims"]:
+        errors.append("need paper-grounded claims")
+    tests=spec.get("tests",[])
+    if not isinstance(tests,list) or len(tests)<3:errors.append("need at least three tests")
+    else:
+        for test in tests:
+            if not isinstance(test,dict) or test.get("unit_id") not in ids or not isinstance(test.get("inputs"),dict) or not isinstance(test.get("assert"),str):errors.append("invalid test")
     return errors

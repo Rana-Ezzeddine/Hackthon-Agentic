@@ -1,6 +1,7 @@
 """arXiv abstract-page metadata reader."""
 from __future__ import annotations
 import re
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 def read_abs(data: bytes) -> dict:
@@ -12,6 +13,12 @@ def read_abs(data: bytes) -> dict:
     meta["doi"] = (metas("citation_doi") or [""])[0]
     pdf=(metas("citation_pdf_url") or [""])[0]
     if pdf: meta["urls"]["pdf"]=pdf
+    for link in soup.select('a[href]'):
+        href = link.get("href", "")
+        parsed = urlparse(href)
+        if parsed.hostname in ("arxiv.org", "www.arxiv.org") and re.fullmatch(r"/html/[^/?#]+v\d+", parsed.path):
+            meta["urls"]["html"] = href
+            break
     subjects=soup.select_one("td.tablecell.subjects")
     if subjects:
         codes=re.findall(r"\(([^)]+)\)",subjects.get_text(" ",strip=True)); meta["categories"]={"primary":codes[0] if codes else "","all":codes}
@@ -23,4 +30,3 @@ def read_abs(data: bytes) -> dict:
     hist=soup.select_one(".submission-history")
     if hist: meta["dates"]={"history":[x.strip() for x in hist.get_text("\n").splitlines() if x.strip()]}
     return meta
-

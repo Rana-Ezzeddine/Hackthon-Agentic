@@ -7,11 +7,11 @@ from paperplay.checks import page_usable,run_checks
 from paperplay.config import GEN_TOKENS,PARSE_REPAIR_TOKENS,REPAIR_TOKENS
 from paperplay.degrade import degrade
 from paperplay.figures import prepare_figures
+from paperplay.full_source import prepare_full_paper
 from paperplay.inputs import load_case
 from paperplay.openrouter import ModelCallError,OpenRouter
 from paperplay.prompts import generation_messages,parse_repair_messages,repair_messages
 from paperplay.render import fallback_page,render,write_atomic
-from paperplay.selection import select
 from paperplay.source import acquire_and_parse
 from paperplay.spec import normalize_spec,parse_json,patch_merge
 from paperplay.trace import Trace
@@ -29,28 +29,38 @@ def generate_spec(llm,case,prepared,record,trace):
             if llm.budget.can_afford(PARSE_REPAIR_TOKENS): return parse_json(llm.complete(parse_repair_messages(raw,str(exc)),PARSE_REPAIR_TOKENS,"parse_repair").content)
             raise
     except Exception as exc:
-        trace.log("spec","fallback","applied",error=type(exc).__name__,message=str(exc)[:180])
-        return fallback_spec(case,prepared)
+        trace.log("spec","generation","fail",error=type(exc).__name__,message=str(exc)[:180])
+        raise
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description="Turn a paper and learning brief into one offline interactive page.")
     parser.add_argument("--input",required=True,type=Path);parser.add_argument("--output",required=True,type=Path);parser.add_argument("--model",required=True)
     args=parser.parse_args(argv);started=time.monotonic();args.output.mkdir(parents=True,exist_ok=True);trace=Trace(args.output/"trace.jsonl",started);budget=Budget(started);llm=OpenRouter(args.model,budget,trace);case=None
     try:
-        case=load_case(args.input,trace);record=acquire_and_parse(case,trace);prepared=select(record,case,trace);prepare_figures(prepared,trace);spec=normalize_spec(generate_spec(llm,case,prepared,record,trace),prepared)
-        trace.log("plan","design","ok",core_idea=spec.get("plan",{}).get("core_idea",""),source_anchor=spec.get("plan",{}).get("source_anchor",""))
+        case=load_case(args.input,trace);record=acquire_and_parse(case,trace)
+        if record.mode=="brief_only":raise ValueError("The complete paper could not be retrieved; generation requires source content.")
+        prepared=prepare_full_paper(record,trace);prepare_figures(prepared,trace)
+        spec=normalize_spec(generate_spec(llm,case,prepared,record,trace),prepared)
+        if spec.get("format")!="focus-guided-v2":raise ValueError("Model did not return the focus-guided template edit format.")
+        trace.log("plan","design","ok",focus_statement=spec.get("focus_statement",""),units=len(spec.get("units",[])))
         failures=[];checks=[];revisions=0
         for revision in range(3):
-            html=render(spec,record,prepared);trace.log("render","page","ok",revision=revision,bytes=len(html.encode("utf-8")))
-            checks=run_checks(spec,record,prepared,html,trace);failures=[x for x in checks if not x["ok"]]
+            try:
+                html=render(spec,record,prepared)
+                trace.log("render","page","ok",revision=revision,bytes=len(html.encode("utf-8")))
+                checks=run_checks(spec,record,prepared,html,trace);failures=[x for x in checks if not x["ok"]]
+            except (TypeError,ValueError) as exc:
+                html="";failures=[{"check":"V_RENDER","ok":False,"msg":str(exc)[:180],"fields":["units"]}]
+                trace.log("render","page","fail",revision=revision,error=type(exc).__name__,message=str(exc)[:180])
             if not failures or revision==2 or not budget.can_afford(REPAIR_TOKENS):break
             try:
                 patch=parse_json(llm.complete(repair_messages(spec,failures,prepared),REPAIR_TOKENS,"repair").content);spec=normalize_spec(patch_merge(spec,patch),prepared);revisions+=1;trace.log("repair","merge_patch","ok",fields=sorted(patch))
             except Exception as exc:
                 trace.log("repair","merge_patch","fail",error=type(exc).__name__);break
         notices=[]
-        if failures:
+        if failures and spec.get("format")!="focus-guided-v2":
             spec,notices=degrade(spec,failures,trace);html=render(spec,record,prepared,notices);checks=run_checks(spec,record,prepared,html,trace);failures=[x for x in checks if not x["ok"]]
+        if not html:html=fallback_page(case,ValueError("The template edit could not be rendered safely."))
         write_atomic(args.output/"index.html",html);usable=page_usable(failures);status=0 if usable else 2
         trace.log("final","summary","ok" if not failures else ("partial" if usable else "fail"),**budget.totals(),seconds=round(time.monotonic()-started,2),checks_passed=sum(x["ok"] for x in checks),checks_failed=sum(not x["ok"] for x in checks),revisions=revisions,remaining_failures=[x["check"] for x in failures],exit_status=status)
         return status

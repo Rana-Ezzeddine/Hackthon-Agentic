@@ -16,6 +16,13 @@ def _finite(value):
     if isinstance(value,dict): return all(_finite(v) for v in value.values())
     if isinstance(value,list): return all(_finite(v) for v in value)
     return value is not None
+def _valid_v2_output(value,path=()):
+    """A null matrix cell denotes a masked score; scalar results stay finite."""
+    if value is None:return bool(path) and path[0]=="matrices"
+    if isinstance(value,float):return math.isfinite(value)
+    if isinstance(value,dict):return all(_valid_v2_output(item,path+(key,)) for key,item in value.items())
+    if isinstance(value,list):return all(_valid_v2_output(item,path) for item in value)
+    return True
 def _path(obj,path):
     for key in path.split("."):
         if not isinstance(obj,dict) or key not in obj:return None
@@ -34,6 +41,8 @@ def _grounded(anchor,context):
     return False
 
 def run_checks(spec,record,prepared,html,trace):
+    if spec.get("format")=="focus-guided-v2":
+        return _run_checks_v2(spec,record,prepared,html,trace)
     results=[]
     controls=[c for c in spec.get("controls",[]) if isinstance(c,dict)] if isinstance(spec.get("controls",[]),list) else []
     views=[v for v in spec.get("views",[]) if isinstance(v,dict)] if isinstance(spec.get("views",[]),list) else []
@@ -133,4 +142,103 @@ def run_checks(spec,record,prepared,html,trace):
     for r in results: trace.log("check",r["check"],"ok" if r["ok"] else "fail",msg=r["msg"],fields=r["fields"])
     return results
 
-def page_usable(fails): return not any(x["check"] in {"C1","C2","C3","C5","C8","C16","C17"} for x in fails)
+def _run_checks_v2(spec,record,prepared,html,trace):
+    results=[];errors=validate_schema(spec)
+    results.append(_result("V0",not errors,"; ".join(errors),["units","coverage","tests"]))
+    units={u.get("id"):u for u in spec.get("units",[]) if isinstance(u,dict)}
+    code_ok=True;state_ok=True;meaningful=True;bindings=True;tests_ok=True;guides_ok=True;draw_ok=True
+    state_issues=[];control_issues=[];guide_issues=[];test_issues=[]
+    forbidden=re.compile(r"</?script|\b(?:document|window|globalThis|fetch|XMLHttpRequest|WebSocket|import|require|eval|constructor|__proto__|localStorage|sessionStorage|navigator|location|setTimeout|setInterval)\b|new\s+Function\b|Math\.random|\bDate\b",re.I)
+    visual_bad=re.compile(r"<script|</script|<iframe|<object|<embed|<foreignObject|\son\w+\s*=|javascript:|\b(?:href|src)\s*=\s*['\"](?:https?:|//)",re.I)
+    for unit in units.values():
+        interaction=unit.get("interaction",{}) if isinstance(unit.get("interaction"),dict) else {}
+        compute=interaction.get("compute","");draw=interaction.get("draw","")
+        if not isinstance(compute,str) or forbidden.search(compute) or not compute.strip():code_ok=False;continue
+        if draw and (not isinstance(draw,str) or forbidden.search(draw)):code_ok=False;continue
+        controls=[c for c in interaction.get("controls",[]) if isinstance(c,dict)]
+        defaults={c.get("id"):c.get("default") for c in controls if c.get("id")}
+        try:
+            default=json.loads(_eval({"compute":compute},defaults))
+            if not isinstance(default,dict) or not _valid_v2_output(default):
+                state_ok=False;state_issues.append(unit.get("id", "unit")+": invalid default compute output")
+            for control in controls:
+                if control.get("type") not in {"slider","number","toggle","select","matrix"}:continue
+                changed=dict(defaults);cid=control["id"]
+                if control["type"] in {"slider","number"}:
+                    changed[cid]=control.get("max") if defaults[cid]!=control.get("max") else control.get("min")
+                elif control["type"]=="toggle":changed[cid]=not defaults[cid]
+                elif control["type"]=="select":
+                    options=[x.get("value") if isinstance(x,dict) else x for x in control.get("options",[])]
+                    changed[cid]=next((x for x in options if x!=defaults[cid]),defaults[cid])
+                else:
+                    changed[cid]=json.loads(json.dumps(defaults[cid]));matrix=changed[cid]
+                    if isinstance(matrix,list) and matrix:
+                        if isinstance(matrix[0],list) and matrix[0]:matrix[0][0]=float(matrix[0][0])+1
+                        else:matrix[0]=float(matrix[0])+1
+                varied=json.loads(_eval({"compute":compute},changed))
+                if varied==default or not _valid_v2_output(varied):
+                    meaningful=False;control_issues.append("%s control %s: unchanged or nonfinite output at %r"%(unit.get("id"),cid,changed[cid]))
+                if control["type"] in {"slider","number"}:
+                    for edge in (control.get("min"),control.get("max")):
+                        if edge is None:continue
+                        probe={**defaults,cid:edge}
+                        if not _valid_v2_output(json.loads(_eval({"compute":compute},probe))):
+                            state_ok=False;state_issues.append("%s control %s: invalid output at boundary %r"%(unit.get("id"),cid,edge))
+            for view in interaction.get("views",[]):
+                if isinstance(view,dict) and view.get("type")!="custom":bindings &= _path(default,view.get("bind","")) is not None
+            for metric in interaction.get("metrics",[]):
+                if isinstance(metric,dict):bindings &= _path(default,metric.get("key","")) is not None
+            for step in unit.get("explorations",[]):
+                if isinstance(step,dict):
+                    state={**defaults,**step.get("preset",{})}
+                    try:passed=bool(_eval({"compute":compute},state,step.get("expect","false")))
+                    except Exception as exc:passed=False;guide_issues.append("%s guide %r: expression error %s"%(unit.get("id"),step.get("title"),str(exc)[:80]))
+                    if not passed:
+                        guides_ok=False
+                        if not any(step.get("title","") in item for item in guide_issues):
+                            guide_issues.append("%s guide %r: false for preset %s; computed values %s"%(unit.get("id"),step.get("title"),json.dumps(step.get("preset",{})),json.dumps(json.loads(_eval({"compute":compute},state)).get("values",{}))[:400]))
+            for test in spec.get("tests",[]):
+                if isinstance(test,dict) and test.get("unit_id")==unit.get("id"):
+                    state={**defaults,**test.get("inputs",{})}
+                    try:passed=bool(_eval({"compute":compute},state,test.get("assert","false")))
+                    except Exception as exc:passed=False;test_issues.append("%s test %r: expression error %s"%(unit.get("id"),test.get("name"),str(exc)[:80]))
+                    if not passed:
+                        tests_ok=False
+                        if not any(test.get("name","") in item for item in test_issues):
+                            test_issues.append("%s test %r: false for inputs %s; computed values %s"%(unit.get("id"),test.get("name"),json.dumps(test.get("inputs",{})),json.dumps(json.loads(_eval({"compute":compute},state)).get("values",{}))[:400]))
+            if draw:
+                import quickjs
+                ctx=quickjs.Context();ctx.set_time_limit(.5);ctx.set_memory_limit(32*1024*1024)
+                output=ctx.eval("const draw=(%s);draw(%s,%s)"%(draw,json.dumps(defaults),json.dumps(default)))
+                draw_ok &= isinstance(output,str) and not visual_bad.search(output)
+        except Exception as exc:
+            state_ok=False;state_issues.append("%s: %s"%(unit.get("id"),str(exc)[:120]))
+    results.extend([
+        _result("V1",code_ok,"unsafe or absent compute/draw code",["units"]),
+        _result("V2",state_ok,"; ".join(state_issues) if state_issues else "all default and boundary states are valid",["units"]),
+        _result("V3",meaningful,"; ".join(control_issues) if control_issues else "all controls change the state",["units"]),
+        _result("V4",bindings,"a view or metric binding is absent",["units"]),
+        _result("V5",guides_ok,"; ".join(guide_issues) if guide_issues else "guided presets pass",["units"]),
+        _result("V6",tests_ok,"; ".join(test_issues) if test_issues else "calculation tests pass",["tests"]),
+        _result("V7",draw_ok,"custom visual output is unsafe",["units"]),
+    ])
+    context=prepared.context;grounded=True
+    known_refs={s.anchor for s in record.sections}
+    known_refs.update(str(item.get("id")) for collection in (record.equations,record.figures,record.tables,record.algorithms,record.theorems) for item in collection if item.get("id"))
+    for unit in spec.get("units",[]):
+        if not isinstance(unit,dict):grounded=False;continue
+        refs=unit.get("source_refs",[])
+        if not isinstance(refs,list) or not refs or any(ref not in known_refs for ref in refs):grounded=False
+    for claim in spec.get("claims",[]):
+        if not isinstance(claim,dict) or claim.get("source_ref") not in known_refs or not _grounded(claim.get("anchor",""),context):grounded=False
+    results.append(_result("V8",grounded,"a paper claim lacks a source anchor",["claims"]))
+    offline=not re.search(r"<script[^>]+src=|<link[^>]+href=|@import|\bfetch\s*\(|XMLHttpRequest|\bimport\s*\(|url\s*\(\s*['\"]?https?",html,re.I)
+    results.append(_result("V9",offline,"page contains a network dependency",["render"]))
+    results.append(_result("V10",0<len(html.encode("utf-8"))<=12*1024*1024,"HTML is empty or larger than 12 MB",["render"]))
+    structure=all(x in html for x in ('id="learning-path"','id="synthesis"','id="coverage-list"','GUIDED EXPLORATIONS','Expand together'))
+    results.append(_result("V11",structure,"base page structure was lost",["render"]))
+    for result in results:trace.log("check",result["check"],"ok" if result["ok"] else "fail",msg=result["msg"],fields=result["fields"])
+    return results
+
+
+def page_usable(fails): return not any(x["check"].startswith("V") or x["check"] in {"C1","C2","C3","C5","C8","C16","C17"} for x in fails)

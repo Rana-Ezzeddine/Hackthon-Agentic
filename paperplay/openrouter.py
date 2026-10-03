@@ -30,9 +30,8 @@ class OpenRouter:
                 if status in (400,422) and attempt==0:
                     self.trace.log("llm",action,"parameter_fallback",http=status,request_no=self.budget.requests)
                     payload.pop("response_format",None); payload.pop("reasoning",None)
-                    for message in payload["messages"]:
-                        if isinstance(message.get("content"),list):
-                            message["content"]="\n".join(x.get("text","") for x in message["content"] if x.get("type")=="text")
+                    # Retry optional parameters, but never silently discard
+                    # paper visuals from a complete-paper request.
                     last="unsupported optional parameter or image input"; continue
                 response.raise_for_status(); data=response.json(); usage=data.get("usage") or {}; details=usage.get("completion_tokens_details") or {}
                 choice=data["choices"][0];content=choice["message"].get("content");finish_reason=choice.get("finish_reason")
