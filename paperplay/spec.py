@@ -54,12 +54,9 @@ def validate_schema(spec):
     if not isinstance(spec.get("custom_svg",""),str): errors.append("custom_svg must be text")
     tests=spec.get("tests",[])
     if not isinstance(tests,list) or not 3<=len(tests)<=6: errors.append("tests need 3-6 cases")
-    ids=[]
     for c in lesson_controls(spec):
         cid=c.get("id")
         if not isinstance(cid,str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*",cid): errors.append("invalid control id")
-        elif cid in ids: errors.append("duplicate control id "+cid)
-        else: ids.append(cid)
         if c.get("role") not in ("paper_variable","result_selector","view_toggle"): errors.append("invalid control role")
     mechanism=spec.get("mechanism",{})
     if not isinstance(mechanism,dict) or mechanism.get("kind") not in ("paper_equation","reported_results","conceptual_process"): errors.append("invalid mechanism kind")

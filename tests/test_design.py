@@ -11,12 +11,19 @@ def test_lesson_components_are_governed():
     assert not validate_design(spec)
 
 
-def test_unknown_component_and_duplicate_control_are_rejected():
+def test_unknown_component_and_inconsistent_shared_control_are_rejected():
     spec=lesson({"type":"iframe"})
-    spec["steps"].append({**spec["steps"][0],"id":"second"})
+    second={**spec["steps"][0],"id":"second"}
+    second["controls"]=[{**spec["steps"][0]["controls"][0],"max":99}]
+    spec["steps"].append(second)
     errors=validate_design(spec)
     assert "unknown display component" in errors
-    assert "invalid or duplicate control id" in errors
+    assert "shared control has inconsistent definitions: x" in errors
+
+
+def test_consistent_shared_control_is_allowed_across_steps():
+    spec=lesson();spec["steps"].append({**spec["steps"][0],"id":"second"})
+    assert not validate_design(spec)
 
 
 def test_matrix_alias_is_normalized():

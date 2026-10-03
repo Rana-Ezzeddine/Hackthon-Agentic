@@ -58,7 +58,16 @@ def run_checks(spec,record,prepared,html,trace):
     outcome_ids=[x.get("id") for x in outcomes if isinstance(x,dict)];step_ids=[x.get("outcome_id") for x in spec.get("steps",[]) if isinstance(x,dict)];recap_ids=[x.get("outcome_id") for x in spec.get("recap",[]) if isinstance(x,dict)]
     coverage=bool(outcome_ids) and sorted(outcome_ids)==sorted(step_ids)==sorted(recap_ids) and len(outcome_ids)==len(set(outcome_ids))
     results.append(_result("C0",coverage,"every outcome needs exactly one step and recap line",["lesson_plan","steps","recap"]))
-    errs=validate_schema(spec);results.append(_result("C1",not errs,"; ".join(errs),["lesson_plan","concept","steps","recap"]))
+    errs=validate_schema(spec)
+    schema_fields=set()
+    for error in errs:
+        if "outcome" in error or "recap" in error:schema_fields.update(("lesson_plan","steps","recap"))
+        elif "concept" in error or "what_it_is" in error:schema_fields.add("concept")
+        elif "compute" in error:schema_fields.add("compute")
+        elif "test" in error:schema_fields.add("tests")
+        elif "mechanism" in error or "scope" in error:schema_fields.add("mechanism")
+        else:schema_fields.add("steps")
+    results.append(_result("C1",not errs,"; ".join(errs),sorted(schema_fields)))
     try:
         if re.search(r"</script",spec.get("compute",""),re.I): raise ValueError("script-closing sequence")
         _eval(spec,defaults);syntax=True;msg=""
@@ -81,23 +90,36 @@ def run_checks(spec,record,prepared,html,trace):
         try:fuzz_ok=all(_finite(json.loads(_eval(spec,q))) for q in samples)
         except Exception:fuzz_ok=False
     results.append(_result("C4",fuzz_ok,"edge input threw or produced non-finite output",["compute","steps"]))
-    matter=default_obj is not None
-    if matter:
+    ineffective=[]
+    if default_obj is not None:
+        seen=set()
         for c in controls:
+            if c.get("id") in seen:continue
+            seen.add(c.get("id"))
             if c.get("role")=="view_toggle":continue
             q=dict(defaults);q[c["id"]]=_changed(c,q.get(c["id"]))
-            try:matter &= json.loads(_eval(spec,q))!=default_obj
-            except Exception:matter=False
-    results.append(_result("C5",matter,"one or more lesson controls do not change output",["steps","compute"]))
+            try:
+                if json.loads(_eval(spec,q))==default_obj:ineffective.append(c["id"])
+            except Exception:ineffective.append(c["id"])
+    else:ineffective=[c.get("id","") for c in controls]
+    results.append(_result("C5",not ineffective,"controls that do not change compute output: "+", ".join(ineffective),["steps","compute"]))
     try:tests_ok=all(_eval(spec,{**defaults,**x.get("inputs",{})},x.get("assert","false")) for x in spec.get("tests",[]) if isinstance(x,dict))
     except Exception:tests_ok=False
     results.append(_result("C6",tests_ok,"a mathematical test failed",["tests","compute"]))
     guides=[]
     for step in spec.get("steps",[]):
         if isinstance(step,dict) and isinstance(step.get("guide"),dict):guides.append(step["guide"])
-    try:guides_ok=len(guides)==len(spec.get("steps",[])) and all(g.get("preset") and any(defaults.get(k)!=v for k,v in g.get("preset",{}).items()) and "r." in str(g.get("expect","")) and _eval(spec,{**defaults,**g.get("preset",{})},g.get("expect","false")) and _path(json.loads(_eval(spec,{**defaults,**g.get("preset",{})})),g.get("evidence_bind")) is not None for g in guides)
-    except Exception:guides_ok=False
-    results.append(_result("C7",guides_ok,"a guide does not verify its claimed observation",["steps","compute"]))
+    bad_guides=[]
+    for step in spec.get("steps",[]):
+        if not isinstance(step,dict) or not isinstance(step.get("guide"),dict):bad_guides.append(str(step.get("id","unknown")) if isinstance(step,dict) else "unknown");continue
+        g=step["guide"]
+        try:
+            changed=bool(g.get("preset")) and any(defaults.get(k)!=v for k,v in g.get("preset",{}).items())
+            observed="r." in str(g.get("expect","")) and bool(_eval(spec,{**defaults,**g.get("preset",{})},g.get("expect","false")))
+            bound=_path(json.loads(_eval(spec,{**defaults,**g.get("preset",{})})),g.get("evidence_bind")) is not None
+            if not (changed and observed and bound):bad_guides.append(step.get("id","unknown"))
+        except Exception:bad_guides.append(step.get("id","unknown"))
+    results.append(_result("C7",not bad_guides,"ineffective or invalid guides in steps: "+", ".join(bad_guides),["steps"]))
     bindings=default_obj is not None and all(_path(default_obj,b) is not None for c in components for b in _component_binds(c))
     results.append(_result("C8",bindings,"a lesson component binding is absent",["steps","compute"]))
     svg_ok=True

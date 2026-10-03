@@ -35,7 +35,7 @@ def normalize_design(spec):
 def _valid_id(value): return isinstance(value,str) and bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*",value))
 
 def validate_design(spec):
-    errors=[]; control_ids=set(); step_ids=set()
+    errors=[]; control_defs={}; control_ids=set(); step_ids=set()
     steps=spec.get("steps")
     if not isinstance(steps,list) or not steps: return ["steps must be a non-empty list"]
     for step in steps:
@@ -49,8 +49,11 @@ def validate_design(spec):
         for control in controls:
             if not isinstance(control,dict): errors.append("control must be an object"); continue
             cid=control.get("id")
-            if not _valid_id(cid) or cid in control_ids: errors.append("invalid or duplicate control id")
-            else: control_ids.add(cid)
+            if not _valid_id(cid): errors.append("invalid control id")
+            else:
+                signature=repr(tuple(control.get(k) for k in ("type","default","min","max","step","options","rows","cols","role","paper_variable")))
+                if cid in control_defs and control_defs[cid]!=signature: errors.append("shared control has inconsistent definitions: "+cid)
+                else: control_defs[cid]=signature;control_ids.add(cid)
             if control.get("type") not in INPUTS: errors.append("unknown input component")
             kind=control.get("type");default=control.get("default")
             if kind in {"slider","number"} and not all(isinstance(control.get(k), (int,float)) for k in ("default","min","max","step")): errors.append("numeric input missing bounds")
@@ -61,7 +64,7 @@ def validate_design(spec):
         for component in components:
             if not isinstance(component,dict) or component.get("type") not in COMPONENTS:
                 errors.append("unknown display component"); continue
-            if component.get("type") not in EXPLANATORY and not component.get("bind"):
+            if component.get("type") not in EXPLANATORY|{"equation_live"} and not component.get("bind"):
                 errors.append("display component missing bind")
             if component.get("type")=="flow_diagram" and not isinstance(component.get("nodes"),list): errors.append("flow_diagram missing nodes")
             if component.get("type")=="flow_diagram" and not isinstance(component.get("edges",[]),list): errors.append("flow_diagram edges must be a list")
