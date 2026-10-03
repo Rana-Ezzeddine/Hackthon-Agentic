@@ -1,0 +1,5 @@
+{
+  "source_url": "https://arxiv.org/html/2306.09226v2",
+  "focus": "Teach the central idea of Sections 3 and 4: define P-randomness through effective Martin-Löf-style tests; explain how a point fails or passes nested exceptional sets whose P-measure shrinks; distinguish the measure-theoretic statement 'F(x) holds for P-almost every x' from the stronger effective statement 'F(x) holds for every P-random x'; demonstrate why randomness is relative to the probability measure P; and prevent the misconception that P-random means equally likely, patternless, or impossible to describe.",
+  "audience": "Third-year computer science or physics undergraduate who knows basic probability, sets, functions, and limits but has not studied computability theory, measure theory, or algorithmic randomness"
+}
