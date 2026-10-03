@@ -1,26 +1,26 @@
-{"t": 0.0, "stage": "input", "action": "validate", "result": "ok", "fields": ["audience", "authors", "excerpt", "focus", "source_url", "title"], "excerpt_chars": 234}
+{"t": 0.001, "stage": "input", "action": "validate", "result": "ok", "fields": ["audience", "authors", "excerpt", "focus", "source_url", "title"], "excerpt_chars": 234}
 {"t": 0.001, "stage": "source", "action": "supplied_excerpt", "result": "ok", "size": 234}
 {"t": 0.001, "stage": "parse", "action": "paper_record", "result": "ok", "mode": "supplied_excerpt", "sections": 1, "equations": 0, "figures": 0, "references": 0, "warnings": []}
 {"t": 0.001, "stage": "select", "action": "rank_sections", "result": "ok", "selected": ["excerpt"], "chars": 379, "figure_candidates": []}
 {"t": 0.001, "stage": "spec", "action": "fallback", "result": "applied", "error": "ModelCallError", "message": "OPENROUTER_API_KEY is not set."}
 {"t": 0.001, "stage": "plan", "action": "design", "result": "ok", "core_idea": "Explain discrete entropy with two meaningful controls and show intermediate contributions.", "source_anchor": "selected source"}
-{"t": 0.001, "stage": "render", "action": "page", "result": "ok", "revision": 0, "bytes": 15739}
-{"t": 0.013, "stage": "check", "action": "C0", "result": "ok", "msg": "unknown coverage IDs: ", "fields": ["plan"]}
-{"t": 0.013, "stage": "check", "action": "C1", "result": "ok", "msg": "", "fields": []}
-{"t": 0.013, "stage": "check", "action": "C2", "result": "ok", "msg": "", "fields": ["compute", "custom_svg"]}
-{"t": 0.013, "stage": "check", "action": "C3", "result": "ok", "msg": "", "fields": ["compute", "controls"]}
-{"t": 0.013, "stage": "check", "action": "C4", "result": "ok", "msg": "fuzz/edge input threw or produced non-finite output", "fields": ["compute", "controls"]}
-{"t": 0.013, "stage": "check", "action": "C5", "result": "ok", "msg": "one or more controls do not change output", "fields": ["controls", "compute"]}
-{"t": 0.013, "stage": "check", "action": "C6", "result": "ok", "msg": "a mathematical test failed", "fields": ["tests", "compute"]}
-{"t": 0.013, "stage": "check", "action": "C7", "result": "ok", "msg": "an exploration expectation failed", "fields": ["explorations", "compute"]}
-{"t": 0.013, "stage": "check", "action": "C8", "result": "ok", "msg": "view or intermediate binding is absent", "fields": ["views", "intermediates", "compute"]}
-{"t": 0.013, "stage": "check", "action": "C9", "result": "ok", "msg": "custom SVG is unsafe or invalid", "fields": ["custom_svg"]}
-{"t": 0.013, "stage": "check", "action": "C10", "result": "ok", "msg": "paper claim lacks a source anchor", "fields": ["claims"]}
-{"t": 0.013, "stage": "check", "action": "C11", "result": "ok", "msg": "brief-only output contains paper claims", "fields": ["claims", "citation"]}
-{"t": 0.013, "stage": "check", "action": "C12", "result": "ok", "msg": "control provenance is incomplete", "fields": ["controls", "symbols"]}
-{"t": 0.013, "stage": "check", "action": "C13", "result": "ok", "msg": "mechanism and calculation scope conflict", "fields": ["mechanism", "compute"]}
-{"t": 0.013, "stage": "check", "action": "C14", "result": "ok", "msg": "figure candidate is missing a concise role", "fields": ["plan"]}
-{"t": 0.013, "stage": "check", "action": "C15", "result": "ok", "msg": "required source metadata is missing", "fields": ["title", "citation"]}
-{"t": 0.013, "stage": "check", "action": "C16", "result": "ok", "msg": "page contains a network dependency", "fields": ["render"]}
-{"t": 0.013, "stage": "check", "action": "C17", "result": "ok", "msg": "HTML is empty or larger than 4 MB", "fields": ["render"]}
-{"t": 0.014, "stage": "final", "action": "summary", "result": "ok", "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "reasoning_tokens": 0, "total_tokens": 0, "seconds": 0.01, "checks_passed": 18, "checks_failed": 0, "revisions": 0, "remaining_failures": [], "exit_status": 0}
+{"t": 0.002, "stage": "render", "action": "page", "result": "ok", "revision": 0, "bytes": 22041}
+{"t": 0.038, "stage": "check", "action": "C0", "result": "ok", "msg": "unknown coverage IDs: ", "fields": ["plan"]}
+{"t": 0.039, "stage": "check", "action": "C1", "result": "ok", "msg": "", "fields": []}
+{"t": 0.039, "stage": "check", "action": "C2", "result": "ok", "msg": "", "fields": ["compute", "custom_svg"]}
+{"t": 0.04, "stage": "check", "action": "C3", "result": "ok", "msg": "", "fields": ["compute", "controls"]}
+{"t": 0.04, "stage": "check", "action": "C4", "result": "ok", "msg": "fuzz/edge input threw or produced non-finite output", "fields": ["compute", "controls"]}
+{"t": 0.04, "stage": "check", "action": "C5", "result": "ok", "msg": "one or more controls do not change output", "fields": ["controls", "compute"]}
+{"t": 0.041, "stage": "check", "action": "C6", "result": "ok", "msg": "a mathematical test failed", "fields": ["tests", "compute"]}
+{"t": 0.041, "stage": "check", "action": "C7", "result": "ok", "msg": "an exploration expectation failed", "fields": ["explorations", "compute"]}
+{"t": 0.044, "stage": "check", "action": "C8", "result": "ok", "msg": "view or intermediate binding is absent", "fields": ["views", "intermediates", "compute"]}
+{"t": 0.045, "stage": "check", "action": "C9", "result": "ok", "msg": "custom SVG is unsafe or invalid", "fields": ["custom_svg"]}
+{"t": 0.045, "stage": "check", "action": "C10", "result": "ok", "msg": "paper claim lacks a source anchor", "fields": ["claims"]}
+{"t": 0.045, "stage": "check", "action": "C11", "result": "ok", "msg": "brief-only output contains paper claims", "fields": ["claims", "citation"]}
+{"t": 0.045, "stage": "check", "action": "C12", "result": "ok", "msg": "control provenance is incomplete", "fields": ["controls", "symbols"]}
+{"t": 0.045, "stage": "check", "action": "C13", "result": "ok", "msg": "mechanism and calculation scope conflict", "fields": ["mechanism", "compute"]}
+{"t": 0.045, "stage": "check", "action": "C14", "result": "ok", "msg": "figure candidate is missing a concise role", "fields": ["plan"]}
+{"t": 0.045, "stage": "check", "action": "C15", "result": "ok", "msg": "required source metadata is missing", "fields": ["title", "citation"]}
+{"t": 0.046, "stage": "check", "action": "C16", "result": "ok", "msg": "page contains a network dependency", "fields": ["render"]}
+{"t": 0.047, "stage": "check", "action": "C17", "result": "ok", "msg": "HTML is empty or larger than 4 MB", "fields": ["render"]}
+{"t": 0.048, "stage": "final", "action": "summary", "result": "ok", "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "reasoning_tokens": 0, "total_tokens": 0, "seconds": 0.05, "checks_passed": 18, "checks_failed": 0, "revisions": 0, "remaining_failures": [], "exit_status": 0}

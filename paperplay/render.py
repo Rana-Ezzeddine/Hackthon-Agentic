@@ -2,12 +2,14 @@
 from __future__ import annotations
 import html,json,os,re
 from pathlib import Path
+from .design import normalize_design
 from .figures import data_uri
 
 ROOT=Path(__file__).resolve().parent.parent
 def _json(value): return re.sub(r"</script",r"<\\/script",json.dumps(value,ensure_ascii=False,separators=(",",":"),default=str),flags=re.I).replace("<!--","<\\!--")
 def _script_source(value): return re.sub(r"</script",r"<\\/script",value if isinstance(value,str) else "",flags=re.I)
 def render(spec,record,prepared,notices=None):
+    normalize_design(spec)
     template=(ROOT/"templates"/"page.html").read_text(encoding="utf-8")
     meta=record.meta; paper={"title":meta.get("title") or spec.get("title","Paper playground"),"authors":[a.get("name","") for a in meta.get("authors",[])],"arxiv_id":meta.get("arxiv_id","") ,"version":meta.get("version","") ,"dates":"; ".join(meta.get("dates",{}).get("history",[])) if isinstance(meta.get("dates"),dict) else str(meta.get("dates", "")),"categories":", ".join(meta.get("categories",{}).get("all",[])) if isinstance(meta.get("categories"),dict) else "","journal_ref":meta.get("journal_ref", ""),"license":meta.get("license", ""),"urls":meta.get("urls",{}),"abstract":meta.get("abstract", ""),"references":record.references,"figures":[{"number":f.get("number"),"caption":f.get("caption","")} for f in record.figures],"mode":record.mode}
     plan=spec.get("plan") if isinstance(spec.get("plan"),dict) else {}

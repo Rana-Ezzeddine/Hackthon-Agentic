@@ -18,7 +18,7 @@ def test_render_is_offline_and_checks_pass():
     case,prepared,record=objects();spec=fallback_spec(case,prepared);html=render(spec,record,prepared)
     results=run_checks(spec,record,prepared,html,Trace())
     assert next(x for x in results if x["check"]=="C16")["ok"]
-    assert len(html)>5000 and "Illustrative toy model" in html
+    assert len(html)>5000 and "Illustrative toy model" in html and 'id="app"' in html
 
 def test_offline_check_rejects_runtime_request():
     case,prepared,record=objects();spec=fallback_spec(case,prepared);html=render(spec,record,prepared)+"<script>fetch('https://example.org')</script>"

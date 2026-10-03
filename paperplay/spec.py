@@ -1,6 +1,7 @@
 """Spec parsing, normalization, validation, and patch merge."""
 from __future__ import annotations
 import json,re
+from .design import normalize_design,validate_design
 
 def parse_json(text):
     value=text.strip()
@@ -35,10 +36,10 @@ def normalize_spec(spec,prepared):
         supported=any(symbol and (symbol==variable or symbol in variable) for symbol in symbols)
         if role not in ("paper_variable","result_selector","view_toggle") or (role=="paper_variable" and not supported):
             control["role"]="result_selector"; control["paper_variable"]=""
-    return spec
+    return normalize_design(spec)
 
 def validate_schema(spec):
-    errors=[]; required=("plan","title","citation","intro","mechanism","symbols","controls","compute","views","intermediates","explorations","limitation","claims","tests")
+    errors=[]; required=("plan","title","citation","intro","mechanism","symbols","controls","compute","views","intermediates","explorations","limitation","claims","tests","design")
     for key in required:
         if key not in spec: errors.append("missing "+key)
     controls=spec.get("controls",[]) if isinstance(spec.get("controls",[]),list) else []
@@ -59,4 +60,5 @@ def validate_schema(spec):
         else: ids.append(cid)
         if c.get("type") not in ("slider","number","toggle","select","matrix"): errors.append("invalid control type")
         if c.get("role") not in ("paper_variable","result_selector","view_toggle"): errors.append("invalid control role")
+    errors.extend(validate_design(spec))
     return errors

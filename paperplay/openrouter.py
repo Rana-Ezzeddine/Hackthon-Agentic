@@ -17,8 +17,8 @@ class OpenRouter:
         key=os.getenv("OPENROUTER_API_KEY","").strip()
         if not key: raise ModelCallError("OPENROUTER_API_KEY is not set.")
         if not self.budget.can_afford(max_tokens): raise ModelCallError("Request budget exhausted.")
-        reasoning_limit=1_500 if action in ("repair","parse_repair") else 7_000
-        payload={"model":self.model,"messages":messages,"max_tokens":max_tokens,"temperature":.2,"response_format":{"type":"json_object"},"reasoning":{"effort":"low","max_tokens":reasoning_limit},"usage":{"include":True}}
+        reasoning_effort="minimal" if action in ("repair","parse_repair") else "low"
+        payload={"model":self.model,"messages":messages,"max_tokens":max_tokens,"temperature":.2,"response_format":{"type":"json_object"},"reasoning":{"effort":reasoning_effort},"usage":{"include":True}}
         last=None
         for attempt in range(2):
             self.budget.requests+=1; started=time.monotonic(); status=None
@@ -26,6 +26,7 @@ class OpenRouter:
                 response=requests.post(self.endpoint,json=payload,headers={"Authorization":"Bearer "+key,"Content-Type":"application/json"},timeout=min(240,max(10,self.budget.remaining_s-20)))
                 status=response.status_code
                 if status in (400,422) and attempt==0:
+                    self.trace.log("llm",action,"parameter_fallback",http=status,request_no=self.budget.requests)
                     payload.pop("response_format",None); payload.pop("reasoning",None)
                     for message in payload["messages"]:
                         if isinstance(message.get("content"),list):
