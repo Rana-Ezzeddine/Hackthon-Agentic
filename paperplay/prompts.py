@@ -13,7 +13,7 @@ SCHEMA={"lesson_plan":{"concept":"","source_anchor":"","outcomes":[{"id":"o1","t
 
 CATALOG="""CATALOG (learner-facing labels must be natural, never these internal names):
 inputs slider|number{id,label,default,min,max,step,help,role,paper_variable}; toggle{id,label,default}; select{id,label,default,options}; matrix_editor{id,label,default,rows,cols}; vector_editor{id,label,default}; distribution_editor{id,label,default}.
-displays bar|line|heatmap|table|vector_view|value_readout{title,bind,caption}; equation_live{title,equation,bindings:[{label,bind}]}; flow_diagram{title,nodes:[{id,label,bind?}],edges:[{from,to,label?}]}; compare_ab{title,view,left:{label,preset,bind},right:{label,preset,bind}}; step_through{title,operations:[{label,bind}]}; sweep_plot{title,parameter,min,max,points,bind}; custom_svg{title,caption}.
+displays bar|line|heatmap|table|vector_view|value_readout{title,bind,caption}; equation_live{title,equation,bindings:[{label,bind}]}; flow_diagram{title,nodes:[{id,label,bind?}],edges:[{from,to,label?}]}; compare_ab{title,view,left:{label,preset,bind},right:{label,preset,bind}}; step_through{title,operations:[{label,bind}]}; sweep_plot{title,parameter,min,max,points,bind} where bind is one scalar result recomputed at every parameter value, never a precomputed series; custom_svg{title,caption}.
 structure step{heading,explanation,controls,components,guide,takeaway}; guide{try,notice,why,preset,evidence_bind,expect}."""
 
 def generation_messages(case,prepared,record):
@@ -30,7 +30,7 @@ def repair_messages(spec,failures,prepared):
     fields=sorted({f for fail in failures for f in fail.get("fields",[])})
     current={k:spec.get(k) for k in fields if k in spec}
     id_rule=" Do not rename any control IDs unless compute is also among the requested replacement fields; reused controls must keep identical definitions." if "compute" not in fields else " Keep control IDs and compute parameter names exactly aligned."
-    return [{"role":"system","content":SYSTEM},{"role":"user","content":"Return replacements only for these failing top-level fields. Preserve the lesson arc and outcome coverage.%s Fix every named failing step/control precisely. Failures: %s\nCURRENT:%s\nSOURCE:%s"%(id_rule,json.dumps(failures),json.dumps(current,ensure_ascii=False),prepared.context)}]
+    return [{"role":"system","content":SYSTEM},{"role":"user","content":"Return replacements only for these failing top-level fields. Preserve the lesson arc and outcome coverage.%s Fix every named failing step/control precisely. Failure diagnostics are authoritative: do not return a named failing field unchanged. Re-evaluate every repaired test and guide against compute; use a truthful computed relationship, never an arbitrary true assertion or unsupported threshold. A sweep_plot bind must resolve to one numeric scalar because the runtime performs the sweep. Failures: %s\nCURRENT:%s\nSOURCE:%s"%(id_rule,json.dumps(failures),json.dumps(current,ensure_ascii=False),prepared.context)}]
 
 def parse_repair_messages(raw,error):
     return [{"role":"system","content":"Return one compact minified JSON object only. Repair syntax, preserve fields and meaning, and finish the object. No commentary."},{"role":"user","content":"Parse error: %s\nRAW:\n%s"%(error,raw)}]

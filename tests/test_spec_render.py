@@ -52,3 +52,10 @@ def test_guide_must_assert_observation_not_just_preset():
     spec["steps"][0]["guide"]["expect"]="p.input===0"
     html=render(spec,record,prepared);results=run_checks(spec,record,prepared,html,Trace())
     assert not next(x for x in results if x["check"]=="C7")["ok"]
+
+def test_sweep_requires_scalar_result_binding():
+    case,prepared,record=objects();spec=fallback_spec(case,prepared)
+    spec["steps"][0]["components"]=[{"type":"sweep_plot","title":"Sweep","parameter":"input","min":0,"max":10,"points":6,"bind":"series.bars"}]
+    html=render(spec,record,prepared);results=run_checks(spec,record,prepared,html,Trace())
+    check=next(x for x in results if x["check"]=="C8")
+    assert not check["ok"] and "scalar" in check["msg"]

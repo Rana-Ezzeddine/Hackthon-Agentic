@@ -103,25 +103,37 @@ def run_checks(spec,record,prepared,html,trace):
             except Exception:ineffective.append(c["id"])
     else:ineffective=[c.get("id","") for c in controls]
     results.append(_result("C5",not ineffective,"controls that do not change compute output: "+", ".join(ineffective),["steps","compute"]))
-    try:tests_ok=all(_eval(spec,{**defaults,**x.get("inputs",{})},x.get("assert","false")) for x in spec.get("tests",[]) if isinstance(x,dict))
-    except Exception:tests_ok=False
-    results.append(_result("C6",tests_ok,"a mathematical test failed",["tests","compute"]))
-    guides=[]
-    for step in spec.get("steps",[]):
-        if isinstance(step,dict) and isinstance(step.get("guide"),dict):guides.append(step["guide"])
+    bad_tests=[]
+    for test in spec.get("tests",[]):
+        if not isinstance(test,dict):bad_tests.append("malformed test");continue
+        try:
+            if not _eval(spec,{**defaults,**test.get("inputs",{})},test.get("assert","false")):bad_tests.append(str(test.get("name","unnamed"))+" returned false")
+        except Exception as exc:bad_tests.append(str(test.get("name","unnamed"))+" threw "+type(exc).__name__)
+    results.append(_result("C6",not bad_tests,"; ".join(bad_tests),["tests","compute"]))
     bad_guides=[]
     for step in spec.get("steps",[]):
         if not isinstance(step,dict) or not isinstance(step.get("guide"),dict):bad_guides.append(str(step.get("id","unknown")) if isinstance(step,dict) else "unknown");continue
         g=step["guide"]
         try:
-            changed=bool(g.get("preset")) and any(defaults.get(k)!=v for k,v in g.get("preset",{}).items())
-            observed="r." in str(g.get("expect","")) and bool(_eval(spec,{**defaults,**g.get("preset",{})},g.get("expect","false")))
-            bound=_path(json.loads(_eval(spec,{**defaults,**g.get("preset",{})})),g.get("evidence_bind")) is not None
-            if not (changed and observed and bound):bad_guides.append(step.get("id","unknown"))
-        except Exception:bad_guides.append(step.get("id","unknown"))
-    results.append(_result("C7",not bad_guides,"ineffective or invalid guides in steps: "+", ".join(bad_guides),["steps"]))
-    bindings=default_obj is not None and all(_path(default_obj,b) is not None for c in components for b in _component_binds(c))
-    results.append(_result("C8",bindings,"a lesson component binding is absent",["steps","compute"]))
+            reasons=[];changed=bool(g.get("preset")) and any(defaults.get(k)!=v for k,v in g.get("preset",{}).items())
+            if not changed:reasons.append("preset changes no default")
+            if "r." not in str(g.get("expect","")):reasons.append("expect does not test r")
+            elif not _eval(spec,{**defaults,**g.get("preset",{})},g.get("expect","false")):reasons.append("expect returned false")
+            computed=json.loads(_eval(spec,{**defaults,**g.get("preset",{})}))
+            if _path(computed,g.get("evidence_bind")) is None:reasons.append("evidence_bind is missing")
+            if reasons:bad_guides.append(str(step.get("id","unknown"))+": "+", ".join(reasons))
+        except Exception as exc:bad_guides.append(str(step.get("id","unknown"))+": threw "+type(exc).__name__)
+    results.append(_result("C7",not bad_guides,"; ".join(bad_guides),["steps"]))
+    bad_bindings=[]
+    if default_obj is None:bad_bindings.append("compute has no default result")
+    else:
+        for component in components:
+            for bind in _component_binds(component):
+                value=_path(default_obj,bind)
+                if value is None:bad_bindings.append(component.get("type","")+" missing "+str(bind))
+            if component.get("type")=="sweep_plot" and not isinstance(_path(default_obj,component.get("bind","")),(int,float)):
+                bad_bindings.append("sweep_plot bind must be a scalar result path, not a precomputed series")
+    results.append(_result("C8",not bad_bindings,"; ".join(bad_bindings),["steps","compute"]))
     svg_ok=True
     if any(c.get("type")=="custom_svg" for c in components):
         try:

@@ -5,22 +5,22 @@
 {"t": 0.001, "stage": "spec", "action": "fallback", "result": "applied", "error": "ModelCallError", "message": "OPENROUTER_API_KEY is not set."}
 {"t": 0.001, "stage": "plan", "action": "lesson", "result": "ok", "concept": "Explain discrete entropy with two meaningful controls and show intermediate contributions.", "outcomes": 1, "steps": 1, "source_anchor": "selected source"}
 {"t": 0.001, "stage": "render", "action": "page", "result": "ok", "revision": 0, "bytes": 25451}
-{"t": 0.008, "stage": "check", "action": "C0", "result": "ok", "msg": "every outcome needs exactly one step and recap line", "fields": ["lesson_plan", "steps", "recap"]}
-{"t": 0.008, "stage": "check", "action": "C1", "result": "ok", "msg": "", "fields": []}
-{"t": 0.008, "stage": "check", "action": "C2", "result": "ok", "msg": "", "fields": ["compute", "custom_svg"]}
-{"t": 0.008, "stage": "check", "action": "C3", "result": "ok", "msg": "default compute produced invalid output", "fields": ["compute", "steps"]}
-{"t": 0.008, "stage": "check", "action": "C4", "result": "ok", "msg": "edge input threw or produced non-finite output", "fields": ["compute", "steps"]}
-{"t": 0.008, "stage": "check", "action": "C5", "result": "ok", "msg": "controls that do not change compute output: ", "fields": ["steps", "compute"]}
-{"t": 0.008, "stage": "check", "action": "C6", "result": "ok", "msg": "a mathematical test failed", "fields": ["tests", "compute"]}
-{"t": 0.008, "stage": "check", "action": "C7", "result": "ok", "msg": "ineffective or invalid guides in steps: ", "fields": ["steps"]}
-{"t": 0.008, "stage": "check", "action": "C8", "result": "ok", "msg": "a lesson component binding is absent", "fields": ["steps", "compute"]}
-{"t": 0.008, "stage": "check", "action": "C9", "result": "ok", "msg": "custom SVG is unsafe or invalid", "fields": ["custom_svg", "steps"]}
-{"t": 0.008, "stage": "check", "action": "C10", "result": "ok", "msg": "paper claim lacks a source anchor", "fields": ["claims"]}
-{"t": 0.008, "stage": "check", "action": "C11", "result": "ok", "msg": "brief-only lesson contains paper claims", "fields": ["claims", "citation"]}
-{"t": 0.008, "stage": "check", "action": "C12", "result": "ok", "msg": "control provenance is incomplete", "fields": ["steps", "concept"]}
-{"t": 0.008, "stage": "check", "action": "C13", "result": "ok", "msg": "mechanism and calculation scope conflict", "fields": ["mechanism", "compute"]}
-{"t": 0.008, "stage": "check", "action": "C14", "result": "ok", "msg": "figure candidate is missing a concise teaching role", "fields": ["lesson_plan"]}
-{"t": 0.008, "stage": "check", "action": "C15", "result": "ok", "msg": "required source metadata is missing", "fields": ["concept", "citation"]}
-{"t": 0.008, "stage": "check", "action": "C16", "result": "ok", "msg": "page contains a network dependency", "fields": ["render"]}
-{"t": 0.008, "stage": "check", "action": "C17", "result": "ok", "msg": "HTML is empty or larger than 4 MB", "fields": ["render"]}
-{"t": 0.009, "stage": "final", "action": "summary", "result": "ok", "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "reasoning_tokens": 0, "total_tokens": 0, "seconds": 0.01, "checks_passed": 18, "checks_failed": 0, "revisions": 0, "remaining_failures": [], "exit_status": 0}
+{"t": 0.009, "stage": "check", "action": "C0", "result": "ok", "msg": "every outcome needs exactly one step and recap line", "fields": ["lesson_plan", "steps", "recap"]}
+{"t": 0.009, "stage": "check", "action": "C1", "result": "ok", "msg": "", "fields": []}
+{"t": 0.009, "stage": "check", "action": "C2", "result": "ok", "msg": "", "fields": ["compute", "custom_svg"]}
+{"t": 0.009, "stage": "check", "action": "C3", "result": "ok", "msg": "default compute produced invalid output", "fields": ["compute", "steps"]}
+{"t": 0.009, "stage": "check", "action": "C4", "result": "ok", "msg": "edge input threw or produced non-finite output", "fields": ["compute", "steps"]}
+{"t": 0.009, "stage": "check", "action": "C5", "result": "ok", "msg": "controls that do not change compute output: ", "fields": ["steps", "compute"]}
+{"t": 0.009, "stage": "check", "action": "C6", "result": "ok", "msg": "", "fields": ["tests", "compute"]}
+{"t": 0.01, "stage": "check", "action": "C7", "result": "ok", "msg": "", "fields": ["steps"]}
+{"t": 0.01, "stage": "check", "action": "C8", "result": "ok", "msg": "", "fields": ["steps", "compute"]}
+{"t": 0.01, "stage": "check", "action": "C9", "result": "ok", "msg": "custom SVG is unsafe or invalid", "fields": ["custom_svg", "steps"]}
+{"t": 0.01, "stage": "check", "action": "C10", "result": "ok", "msg": "paper claim lacks a source anchor", "fields": ["claims"]}
+{"t": 0.01, "stage": "check", "action": "C11", "result": "ok", "msg": "brief-only lesson contains paper claims", "fields": ["claims", "citation"]}
+{"t": 0.01, "stage": "check", "action": "C12", "result": "ok", "msg": "control provenance is incomplete", "fields": ["steps", "concept"]}
+{"t": 0.01, "stage": "check", "action": "C13", "result": "ok", "msg": "mechanism and calculation scope conflict", "fields": ["mechanism", "compute"]}
+{"t": 0.01, "stage": "check", "action": "C14", "result": "ok", "msg": "figure candidate is missing a concise teaching role", "fields": ["lesson_plan"]}
+{"t": 0.01, "stage": "check", "action": "C15", "result": "ok", "msg": "required source metadata is missing", "fields": ["concept", "citation"]}
+{"t": 0.01, "stage": "check", "action": "C16", "result": "ok", "msg": "page contains a network dependency", "fields": ["render"]}
+{"t": 0.01, "stage": "check", "action": "C17", "result": "ok", "msg": "HTML is empty or larger than 4 MB", "fields": ["render"]}
+{"t": 0.01, "stage": "final", "action": "summary", "result": "ok", "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "reasoning_tokens": 0, "total_tokens": 0, "seconds": 0.01, "checks_passed": 18, "checks_failed": 0, "revisions": 0, "remaining_failures": [], "exit_status": 0}

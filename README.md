@@ -43,7 +43,7 @@ The agent recognizes common excerpt keys (`excerpt`, `paper_excerpt`, `source_ex
 4. Rank source sections against `focus`; `audience` never changes source selection.
 5. Ask the selected OpenRouter model for one compact `LessonSpec`: explicit outcomes, a teaching arc, one step per outcome, step-scoped controls and figures, meaningful guides, recap, claims, deterministic compute code, and tests.
 6. Compose the lesson from the governed teaching-component library, then run deterministic checks C0–C17. JavaScript and guide assertions are executed in isolated QuickJS contexts.
-7. Send only failing fields and relevant source passages for up to two repairs. If failures remain, degrade optional visuals or relabel ungrounded claims visibly; mathematical failures are never hidden.
+7. Send only failing fields and relevant source passages for up to three repairs within the fixed request/token budget. If failures remain, degrade optional visuals or relabel ungrounded claims visibly; mathematical failures are never hidden.
 
 The budget is capped at 10 API requests, 30,000 completion tokens, and 540 seconds. One request and 1,000 tokens remain reserved. Normal runs use one generation call and zero or one repair. Every attempt, check, repair, failure, timing, and token count is recorded in `trace.jsonl`; prompts, source text, model output, credentials, and hidden reasoning are not.
 

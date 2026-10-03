@@ -17,7 +17,8 @@ def lesson_components(spec):
 
 def normalize_design(spec):
     """Normalize harmless aliases while preserving the model's teaching decisions."""
-    for step in spec.get("steps",[]) if isinstance(spec.get("steps"),list) else []:
+    steps=spec.get("steps",[]) if isinstance(spec.get("steps"),list) else []
+    for step in steps:
         if not isinstance(step,dict): continue
         controls=step.get("controls") if isinstance(step.get("controls"),list) else []
         for control in controls:
@@ -30,6 +31,14 @@ def normalize_design(spec):
         explanation=step.get("explanation",[])
         if isinstance(explanation,str): explanation=[explanation]
         step["explanation"]=[str(x)[:900] for x in explanation[:3]]
+    ids=[c.get("id") for step in steps if isinstance(step,dict) for c in step.get("controls",[]) if isinstance(c,dict) and isinstance(c.get("id"),str)]
+    aliases={re.sub(r"[^a-z0-9]","",cid.lower()):cid for cid in ids}
+    for step in steps:
+        if not isinstance(step,dict):continue
+        for component in step.get("components",[]):
+            if isinstance(component,dict) and component.get("type")=="sweep_plot" and component.get("parameter") not in ids:
+                alias=re.sub(r"[^a-z0-9]","",str(component.get("parameter","")).lower())
+                if alias in aliases:component["parameter"]=aliases[alias]
     return spec
 
 def _valid_id(value): return isinstance(value,str) and bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*",value))

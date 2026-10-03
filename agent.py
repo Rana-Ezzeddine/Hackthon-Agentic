@@ -41,10 +41,10 @@ def main(argv=None):
         case=load_case(args.input,trace);record=acquire_and_parse(case,trace);prepared=select(record,case,trace);prepare_figures(prepared,trace);spec=normalize_spec(generate_spec(llm,case,prepared,record,trace),prepared)
         trace.log("plan","lesson","ok",concept=spec.get("lesson_plan",{}).get("concept",""),outcomes=len(spec.get("lesson_plan",{}).get("outcomes",[])),steps=len(spec.get("steps",[])),source_anchor=spec.get("lesson_plan",{}).get("source_anchor",""))
         failures=[];checks=[];revisions=0
-        for revision in range(3):
+        for revision in range(4):
             html=render(spec,record,prepared);trace.log("render","page","ok",revision=revision,bytes=len(html.encode("utf-8")))
             checks=run_checks(spec,record,prepared,html,trace);failures=[x for x in checks if not x["ok"]]
-            if not failures or revision==2 or not budget.can_afford(REPAIR_TOKENS):break
+            if not failures or revision==3 or not budget.can_afford(REPAIR_TOKENS):break
             try:
                 patch=parse_json(llm.complete(repair_messages(spec,failures,prepared),REPAIR_TOKENS,"repair").content);spec=normalize_spec(patch_merge(spec,patch),prepared);revisions+=1;trace.log("repair","merge_patch","ok",fields=sorted(patch))
             except Exception as exc:

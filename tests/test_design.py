@@ -30,3 +30,10 @@ def test_matrix_alias_is_normalized():
     spec=lesson(control_type="matrix")
     normalize_design(spec)
     assert spec["steps"][0]["controls"][0]["type"]=="matrix_editor"
+
+
+def test_math_notation_alias_for_sweep_parameter_is_normalized():
+    spec=lesson({"type":"sweep_plot","parameter":"d_k","min":1,"max":8,"points":4,"bind":"values.x"})
+    spec["steps"][0]["controls"][0]["id"]="dk"
+    normalize_design(spec)
+    assert spec["steps"][0]["components"][0]["parameter"]=="dk"
