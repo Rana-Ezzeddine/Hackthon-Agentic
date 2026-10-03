@@ -70,8 +70,10 @@ def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
     for idx,box in enumerate(soup.select("figure.ltx_table")):
         cap=box.find("figcaption"); rows=[]
         for tr in box.select("tr")[:15]: rows.append([_clean_text(cell) for cell in tr.select("th,td")])
-        tid=box.get("id","table-%d"%(idx+1)); tag=box.select_one(".ltx_tag_table")
-        record.tables.append({"id":tid,"number":_clean_text(tag) if tag else str(idx+1),"caption":_clean_text(cap) if cap else "","section":"","rows":rows,"markdown":"\n".join("|"+"|".join(r)+"|" for r in rows)})
+        tid=box.get("id","table-%d"%(idx+1)); tag=box.select_one(".ltx_tag_table"); parent=box.find_parent("section"); section_id=parent.get("id","") if parent else ""
+        record.tables.append({"id":tid,"number":_clean_text(tag) if tag else str(idx+1),"caption":_clean_text(cap) if cap else "","section":section_id,"rows":rows,"markdown":"\n".join("|"+"|".join(r)+"|" for r in rows)})
+        for section in record.sections:
+            if section.anchor==section_id: section.tab_ids.append(tid); break
     for node in soup.select(".ltx_float_algorithm,.ltx_listing"):
         record.algorithms.append({"id":node.get("id","") ,"caption":_clean_text(node.find("figcaption")) if node.find("figcaption") else "","text":_clean_text(node)})
     for node in soup.select(".ltx_theorem"):

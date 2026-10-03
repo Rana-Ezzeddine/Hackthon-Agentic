@@ -81,7 +81,11 @@ def validate_design(spec):
             if component.get("type")=="compare_ab":
                 if not all(isinstance(component.get(x),dict) for x in ("left","right")): errors.append("compare_ab missing sides")
                 elif not all(isinstance(component[x].get("preset"),dict) and component[x].get("bind") for x in ("left","right")): errors.append("compare_ab sides are incomplete")
-            if component.get("type")=="step_through" and (not isinstance(component.get("operations"),list) or not component.get("operations") or any(not isinstance(x,dict) or not x.get("bind") for x in component.get("operations",[]))): errors.append("step_through missing operations")
+            if component.get("type")=="step_through":
+                operations=component.get("operations")
+                operations_ok=isinstance(operations,list) and bool(operations) and all(isinstance(x,dict) and x.get("bind") for x in operations)
+                if operations not in (None,[]) and not operations_ok: errors.append("step_through operations need label and bind")
+                if not operations_ok and not component.get("bind"): errors.append("step_through needs operations or an array bind")
             if component.get("type")=="sweep_plot" and (component.get("parameter") not in control_ids or not component.get("bind") or not all(isinstance(component.get(k),(int,float)) for k in ("min","max","points"))): errors.append("sweep_plot is incomplete")
             if component.get("type")=="custom_svg" and not str(spec.get("custom_svg","")).strip(): errors.append("custom_svg source is missing")
         guide=step.get("guide")

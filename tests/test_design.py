@@ -37,3 +37,12 @@ def test_math_notation_alias_for_sweep_parameter_is_normalized():
     spec["steps"][0]["controls"][0]["id"]="dk"
     normalize_design(spec)
     assert spec["steps"][0]["components"][0]["parameter"]=="dk"
+
+
+def test_step_through_accepts_operations_or_array_binding():
+    bound=lesson({"type":"step_through","title":"Walk it","bind":"series.levels"})
+    operations=lesson({"type":"step_through","title":"Walk it","operations":[{"label":"First","bind":"values.x"}]})
+    broken=lesson({"type":"step_through","title":"Walk it","operations":[{"label":"First"}]})
+    assert not validate_design(bound)
+    assert not validate_design(operations)
+    assert "step_through operations need label and bind" in validate_design(broken)

@@ -16,3 +16,11 @@ def test_focus_changes_selection_but_audience_does_not():
     one=select(record,C,T()).selected_anchors;C.audience="expert";two=select(record,C,T()).selected_anchors
     assert one==two and "b" in one
 
+
+def test_selected_section_tables_are_sent_as_structured_context():
+    record=PaperRecord(mode="arxiv_html",sections=[Section(anchor="S3",number="3",heading="Results",text="The experiment compares methods.",tab_ids=["S3.T1"])])
+    record.tables=[{"id":"S3.T1","number":"1","caption":"Method comparison","section":"S3","rows":[["Method","Score"],["A","0.9"]],"markdown":"|Method|Score|\n|A|0.9|"}]
+    class C:source_url="https://example.org";focus="Section 3 experiment comparison";audience="student";hints={}
+    prepared=select(record,C,T())
+    assert prepared.gated_tables[0]["id"]=="S3.T1"
+    assert "[TABLE S3.T1" in prepared.context and "|Method|Score|" in prepared.context

@@ -120,6 +120,7 @@ def run_checks(spec,record,prepared,html,trace):
             if "r." not in str(g.get("expect","")):reasons.append("expect does not test r")
             elif not _eval(spec,{**defaults,**g.get("preset",{})},g.get("expect","false")):reasons.append("expect returned false")
             computed=json.loads(_eval(spec,{**defaults,**g.get("preset",{})}))
+            if "expect returned false" in reasons: reasons[-1]+="; observed %s=%r"%(g.get("evidence_bind"),_path(computed,g.get("evidence_bind")))
             if _path(computed,g.get("evidence_bind")) is None:reasons.append("evidence_bind is missing")
             if reasons:bad_guides.append(str(step.get("id","unknown"))+": "+", ".join(reasons))
         except Exception as exc:bad_guides.append(str(step.get("id","unknown"))+": threw "+type(exc).__name__)
@@ -131,6 +132,8 @@ def run_checks(spec,record,prepared,html,trace):
             for bind in _component_binds(component):
                 value=_path(default_obj,bind)
                 if value is None:bad_bindings.append(component.get("type","")+" missing "+str(bind))
+            if component.get("type")=="step_through" and component.get("bind") and not isinstance(_path(default_obj,component.get("bind")),list):
+                bad_bindings.append("step_through bind must resolve to an array")
             if component.get("type")=="sweep_plot" and not isinstance(_path(default_obj,component.get("bind","")),(int,float)):
                 bad_bindings.append("sweep_plot bind must be a scalar result path, not a precomputed series")
     results.append(_result("C8",not bad_bindings,"; ".join(bad_bindings),["steps","compute"]))
