@@ -1,6 +1,6 @@
 # Paper → Playground
 
-Paper → Playground is a reusable Python agent that turns a paper URL, focus, and audience into one source-grounded, audience-specific interactive HTML explanation. The generated page is self-contained and works offline; the agent, checks, trace, and fallback behavior are the submission.
+Paper → Playground is a reusable Python agent that turns a paper URL, focus, and audience into one source-grounded, audience-specific explorable lesson. The generated page is self-contained and works offline; the agent, checks, trace, and fallback behavior are the submission.
 
 ## Team
 
@@ -41,15 +41,15 @@ The agent recognizes common excerpt keys (`excerpt`, `paper_excerpt`, `source_ex
 2. Prefer a supplied excerpt; otherwise try arXiv HTML, ar5iv, PDF, then generic HTML with strict timeout and size caps.
 3. Parse the source into a normalized `PaperRecord` with metadata, sections, equations, figures, tables, and references.
 4. Rank source sections against `focus`; `audience` never changes source selection.
-5. Ask the selected OpenRouter model for one compact `PlaygroundSpec` containing explanation, deterministic compute code, visual code, controls, explorations, claims, and tests.
-6. Fill the flexible presentation shell with a governed, audience-specific teaching formulation and interactive component, then run deterministic checks C0–C17. JavaScript is executed in isolated QuickJS contexts.
+5. Ask the selected OpenRouter model for one compact `LessonSpec`: explicit outcomes, a teaching arc, one step per outcome, step-scoped controls and figures, meaningful guides, recap, claims, deterministic compute code, and tests.
+6. Compose the lesson from the governed teaching-component library, then run deterministic checks C0–C17. JavaScript and guide assertions are executed in isolated QuickJS contexts.
 7. Send only failing fields and relevant source passages for up to two repairs. If failures remain, degrade optional visuals or relabel ungrounded claims visibly; mathematical failures are never hidden.
 
 The budget is capped at 10 API requests, 30,000 completion tokens, and 540 seconds. One request and 1,000 tokens remain reserved. Normal runs use one generation call and zero or one repair. Every attempt, check, repair, failure, timing, and token count is recorded in `trace.jsonl`; prompts, source text, model output, credentials, and hidden reasoning are not.
 
 ## Failure and exit policy
 
-- `0`: the page is usable (intro, executable compute, at least one view, and at least two working controls), even if non-critical failures are disclosed.
+- `0`: the lesson is usable (complete outcome coverage, executable compute, valid step figures, and working guides), even if non-critical failures are disclosed.
 - `2`: only a static or unusable partial page could be produced.
 - `1`: invalid input or an unrecoverable crash. A minimal error page is still written.
 
@@ -66,13 +66,13 @@ Set `NO_FETCH=1` to exercise the OpenRouter-only network condition. Set `VISION=
 
 ## Repository map
 
-`agent.py` owns orchestration and exit codes. `paperplay/` contains input, acquisition, parsing, selection, prompts, OpenRouter budgeting, specification handling, checks, degradation, trace, and rendering modules. `paperplay/design.py` governs pedagogical formulations, interaction families, layouts, diagrams, discovery formats, context formats, and palettes. `templates/page.html` is the flexible presentation shell and offline interaction runtime. `tests/` holds contract and parser fixtures; `cases/` contains practice cases; `examples/` contains one generated example pair.
+`agent.py` owns orchestration and exit codes. `paperplay/` contains input, acquisition, parsing, selection, prompts, OpenRouter budgeting, specification handling, checks, degradation, trace, and rendering modules. `paperplay/design.py` defines and validates the teaching-component catalog. `templates/page.html` is the offline lesson runtime. `tests/` holds contract and parser fixtures; `cases/` contains practice cases; `examples/` contains one generated example pair.
 
-## Governed visual composition
+## Lesson-shaped component composition
 
-The supplied presentation shell provides broad regions for orientation, interaction, guided discovery, and source context. Everything inside those regions is generated for the requested focus and audience. The model chooses whether orientation should be equation-first, visual-first, intuition-first, a derivation, a comparison, or a worked example. It also chooses an interaction family (matrix lab, parameter sweep, distribution lab, network flow, process simulator, comparator, or custom canvas), layout, primary diagram, exploration format, context format, and palette.
+The page always reads as a lesson: concept title and source line, “What it is,” “Why it exists,” the equation and symbols, ordered teaching steps, recap, and sources and simplifications. There is no marketing hero, metadata ribbon, navigation chrome, global control panel, or visible design-token language.
 
-The model generates the actual controls, deterministic computation, intermediate values, view bindings, custom SVG, explanations, explorations, claims, and tests. Governance validates every choice against an allowlist, keeps model text out of raw HTML, sanitizes the only SVG insertion point, and rejects unsafe colors or components. If design direction is omitted, subject-aware defaults select a suitable formulation without changing the scientific content.
+Each outcome receives one step with its own explanation, relevant controls, small interactive figures, a Try/Notice/Why guide, and a takeaway. The model composes from tested inputs (`slider`, `number`, `toggle`, `select`, `matrix_editor`, `vector_editor`, `distribution_editor`) and displays (`bar`, `line`, `heatmap`, `table`, `vector_view`, `value_readout`, `equation_live`, `flow_diagram`, `compare_ab`, `step_through`, `sweep_plot`). A sanitized `custom_svg` is the escape hatch. Python rejects unknown components, broken bindings, uncovered outcomes, preset-only guide assertions, unsafe SVG, and controls that do not affect the shared computation.
 
 ## Credits and licenses
 

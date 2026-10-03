@@ -43,8 +43,9 @@ def select(record, case, trace):
         blocks.append(block)
         for eq in record.equations:
             if eq.get("id") in s.eq_ids: blocks.append("[Eq. (%s)] $%s$"%(eq.get("number",""),eq.get("latex","")))
+    cited={key for section in ordered for key in section.cite_keys}
     for ref in record.references:
-        if len("\n".join(blocks))+len(ref.get("text",""))<12000: blocks.append("[REFERENCE %s] %s"%(ref.get("number",""),ref.get("text","")))
+        if ref.get("key") in cited and len("\n".join(blocks))+len(ref.get("text",""))<12000: blocks.append("[REFERENCE %s] %s"%(ref.get("number",""),ref.get("text","")))
     context="\n".join(blocks)[:12000]
     gated=[]
     for fig in record.figures:
@@ -53,4 +54,3 @@ def select(record, case, trace):
     result=PreparedSource(context,[s.anchor for s in ordered],len(context),record.mode,gated_figures=gated[:2])
     trace.log("select","rank_sections","ok",selected=result.selected_anchors,chars=result.chars,figure_candidates=[f.get("id") for f in result.gated_figures])
     return result
-

@@ -12,12 +12,19 @@ def _clean_text(node):
     for bad in clone.select("script,style,nav,header,footer,noscript,form,.ltx_page_footer"): bad.decompose()
     return re.sub(r"\s+"," ",clone.get_text(" ",strip=True)).strip()
 
+def _clean_author(node):
+    clone=BeautifulSoup(str(node),"html.parser")
+    for marker in clone.select("sup,.ltx_note,.ltx_note_mark,.ltx_ERROR"): marker.decompose()
+    value=re.sub(r"\bfootnotemark\b\s*:?\s*\d*","",clone.get_text(" ",strip=True),flags=re.I)
+    value=re.sub(r"(?:^|\s)\d+(?=\s|$)"," ",value)
+    return re.sub(r"\s+"," ",value).strip(" ,;·")
+
 def read_html(data: bytes, base_url: str, mode="arxiv_html") -> PaperRecord:
     soup=BeautifulSoup(data,"html.parser"); record=PaperRecord(mode=mode)
     title=soup.select_one("h1.ltx_title_document") or soup.find("h1") or soup.find("title")
     record.meta["title"]=_clean_text(title) if title else ""
     for creator in soup.select(".ltx_creator.ltx_role_author"):
-        person=creator.select_one(".ltx_personname"); name=_clean_text(person) if person else ""
+        person=creator.select_one(".ltx_personname"); name=_clean_author(person) if person else ""
         aff=[_clean_text(x) for x in creator.select(".ltx_role_affiliation")]
         email=creator.select_one(".ltx_role_email")
         if name: record.meta["authors"].append({"name":name,"affiliations":aff,"email":_clean_text(email) if email else ""})
